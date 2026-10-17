@@ -40,4 +40,15 @@ describe('explicit browser-local workspace', () => {
   it('reports unavailable storage rather than pretending to save', async () => {
     await expect(saveWorkspace(record(), undefined)).rejects.toThrow(/存储|IndexedDB|存档/)
   })
+  it('reports structured-clone failure and preserves the previous stored snapshot', async () => {
+    const factory = new IDBFactory()
+    const saved = record()
+    await saveWorkspace(saved, factory)
+    const invalid = record()
+    invalid.dataset.name = 'should-not-save.csv'
+    Object.assign(invalid.dataset.rows[0], { unsupported: () => 1 })
+    await expect(saveWorkspace(invalid, factory)).rejects.toThrow()
+    expect(await readWorkspace(factory)).toEqual(saved)
+    expect((await workspaceInfo(factory))?.name).toBe('saved.csv')
+  })
 })

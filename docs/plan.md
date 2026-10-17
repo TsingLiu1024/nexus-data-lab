@@ -1,5 +1,6 @@
 # NEXUS Data Lab Implementation Plan
 
+> 初版历史记录。v1.1 优化方案与执行状态见 optimization-design.md 和 optimization-plan.md。
 Goal: Build, verify and push a complete Chinese CSV analytics workspace with a dark technology theme.
 Architecture: In-memory immutable datasets, pure data operations, shared filtered rows for all consumers, React views and Recharts.
 Spec: docs/design.md

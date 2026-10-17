@@ -13,28 +13,28 @@
 - 50,000-row input must not block main-thread typing; fixed startup origin preserves storage.
 
 ## Task 1 — Correctness
-- [ ] Add failing regressions in src/data.test.ts for typed equality, numeric axes, original-byte size.
-- [ ] Implement comparison and aggregation options in src/data.ts; run suite and commit.
+- [x] Add failing regressions in src/data.test.ts for typed equality, numeric axes, original-byte size.
+- [x] Implement comparison and aggregation options in src/data.ts; run suite and commit.
 
 ## Task 2 — Worker and performance
-- [ ] Test pagination, query cache, sorted export and staged-import atomicity in src/analysis.test.ts.
-- [ ] Implement src/analysis.ts, data.worker.ts, worker-client.ts; raw data stays in worker.
-- [ ] Update App, Charts and DataTable for asynchronous paginated analytics; debounce 150ms and ignore stale results.
-- [ ] Verify real worker and large-input responsiveness in browser.
+- [x] Test pagination, query cache, sorted export and staged-import atomicity in src/analysis.test.ts.
+- [x] Implement src/analysis.ts, data.worker.ts, worker-client.ts; raw data stays in worker.
+- [x] Update App, Charts and DataTable for asynchronous paginated analytics; debounce 150ms and ignore stale results.
+- [x] Verify real worker and large-input responsiveness in browser.
 
 ## Task 3 — Startup
-- [ ] Test launcher identity, occupied port and no-browser production service.
-- [ ] Implement start.cmd and scripts/start.mjs with dependency/build fingerprints, service reuse and Edge opening.
+- [x] Test launcher identity, occupied port and no-browser production service.
+- [x] Implement start.cmd and scripts/start.mjs with dependency/build fingerprints, service reuse and Edge opening.
 
 ## Task 4 — Workspace
-- [ ] Test IndexedDB roundtrip, delete, transaction failure and saved-state validation.
-- [ ] Implement src/workspace.ts and worker save/restore/delete; add UI and cross-refresh browser tests.
+- [x] Test IndexedDB roundtrip, delete, transaction failure and saved-state validation.
+- [x] Implement src/workspace.ts and worker save/restore/delete; add UI and cross-refresh browser tests.
 
 ## Task 5 — Configured import
-- [ ] Test delimiter/date formats/types and invalid conversions before implementation.
-- [ ] Implement staged preview, config refresh, type overrides and confirmation in ImportDialog.
-- [ ] Update previous browser imports and add configured-import regressions.
+- [x] Test delimiter/date formats/types and invalid conversions before implementation.
+- [x] Implement staged preview, config refresh, type overrides and confirmation in ImportDialog.
+- [x] Update previous browser imports and add configured-import regressions.
 
 ## Task 6 — Delivery
-- [ ] Complete unit/browser suites, production build, audit, screenshots and independent read-only review.
-- [ ] Update README/verification, archive source, push main and verify GitHub CI.
+- [x] Complete unit/browser suites, production build, audit, screenshots and independent read-only review.
+Delivery integration: README and verification updated; source archive follows the final commit. The pushed SHA and cloud test result are verified through GitHub Actions.

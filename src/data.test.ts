@@ -120,6 +120,19 @@ describe('shared query pipeline', () => {
 })
 
 describe('chart aggregation', () => {
+  it('combines equivalent numeric and date dimensions while preserving text identifiers and raw exports', () => {
+    const rows = [{ x: '1', y: '10' }, { x: '1.00', y: '20' }, { x: '2', y: '5' }]
+    expect(aggregateRows(rows, 'x', 'y', 'sum', 30, { type: 'number' })).toEqual([{ name: '1', value: 30, count: 2 }, { name: '2', value: 5, count: 1 }])
+    expect(aggregateRows(rows, 'x', '__count__', 'count', 5, { type: 'number', order: 'value' })[0]).toEqual({ name: '1', value: 2, count: 2 })
+    expect(aggregateRows(rows, 'x', 'y', 'mean', 30, { type: 'number' })[0].value).toBe(15)
+    expect(aggregateRows(rows, 'x', 'y', 'sum', 30, { type: 'text' })).toHaveLength(3)
+    const d = parseCsv('日期,金额\n1/2/2026,10\n01/02/2026,20\n2/2/2026,5', 'dates.csv', { dateFormat: 'dmy-slash' })
+    const options = { type: 'date', dateFormat: 'dmy-slash' } as const
+    expect(aggregateRows(d.rows, 'c0', 'c1', 'sum', 30, options)).toEqual([{ name: '1/2/2026', value: 30, count: 2 }, { name: '2/2/2026', value: 5, count: 1 }])
+    expect(aggregateRows(d.rows, 'c0', 'c1', 'mean', 30, options)[0].value).toBe(15)
+    expect(aggregateRows(d.rows, 'c0', '__count__', 'count', 30, options)[0].value).toBe(2)
+    expect(JSON.parse(serializeJson(d.columns, d.rows))[1]['日期']).toBe('01/02/2026')
+  })
   it('orders numeric trend dimensions by X while distributions retain value order', () => {
     const data = [{ x: '1', y: '100' }, { x: '2', y: '1' }, { x: '3', y: '50' }]
     expect(aggregateRows(data, 'x', 'y', 'sum', 30, { type: 'number' }).map(p => p.name)).toEqual(['1', '2', '3'])

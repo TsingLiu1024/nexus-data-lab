@@ -1,5 +1,6 @@
 # NEXUS Data Lab — 设计
 
+> 初版历史记录。v1.1 优化方案与执行状态见 optimization-design.md 和 optimization-plan.md。
 2026-10-17。用户选择 CSV 数据分析台，深色科技风，要求自动完成并推送 GitHub。
 
 ## 目标

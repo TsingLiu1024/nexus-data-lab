@@ -7,6 +7,14 @@ import { spawn } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+export function launchDecision(status, state, current) {
+  if (status === 'other') throw new Error('The selected port is occupied by another application.')
+  if (status === 'offline') return 'prepare'
+  if (!current.dependenciesPresent || !current.buildPresent || state?.lock !== current.lock || state?.fingerprint !== current.fingerprint) {
+    throw new Error('The running NEXUS service may be out of date. Stop its terminal with Ctrl+C, then restart start.cmd to rebuild the updated project.')
+  }
+  return 'reuse'
+}
 
 export async function inspectService(url) {
   return new Promise(resolveResult => {
@@ -74,16 +82,17 @@ async function main() {
   const browser = !process.argv.includes('--no-browser')
   const status = await inspectService(url)
   if (status === 'other') throw new Error(`Port ${port} is occupied by another application. Close it or set NEXUS_PORT.`)
-  if (status === 'nexus') { console.log(`NEXUS is already running: ${url}`); if (browser) openBrowser(url); return }
   const statePath = join(root, '.nexus-launcher.local')
   let state = {}
-  try { state = JSON.parse(await readFile(statePath, 'utf8')) } catch { /* first launch */ }
+  try { state = JSON.parse(await readFile(statePath, 'utf8')) ?? {} } catch { /* first launch */ }
   const lock = createHash('sha256').update(await readFile(join(root, 'package-lock.json'))).digest('hex')
+  const fingerprint = await buildFingerprint(root)
+  const decision = launchDecision(status, state, { lock, fingerprint, dependenciesPresent: existsSync(join(root, 'node_modules/vite/bin/vite.js')), buildPresent: existsSync(join(root, 'dist/index.html')) })
+  if (decision === 'reuse') { console.log(`NEXUS is already running and up to date: ${url}`); if (browser) openBrowser(url); return }
   if (state.lock !== lock || !existsSync(join(root, 'node_modules/vite/bin/vite.js'))) {
     console.log('Preparing locked dependencies (first launch or updated dependencies)...')
     await runNpm(['ci'])
   }
-  const fingerprint = await buildFingerprint(root)
   if (state.fingerprint !== fingerprint || !existsSync(join(root, 'dist/index.html'))) {
     console.log('Building NEXUS...')
     await runNpm(['run', 'build'])

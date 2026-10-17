@@ -66,8 +66,9 @@ export class AnalysisEngine {
     const trendKey = JSON.stringify(['trend', dimension, metric, mode])
     const distributionKey = JSON.stringify(['distribution', category])
     const dimensionColumn = this.dataset!.columns.find(c => c.key === dimension)
+    const categoryColumn = this.dataset!.columns.find(c => c.key === category)
     if (!this.charts.has(trendKey)) this.charts.set(trendKey, aggregateRows(cache.rows, dimension, metric, mode, 30, { type: dimensionColumn?.type, dateFormat: dimensionColumn?.dateFormat }))
-    if (!this.charts.has(distributionKey)) this.charts.set(distributionKey, aggregateRows(cache.rows, category, '__count__', 'count', 5, { order: 'value' }))
+    if (!this.charts.has(distributionKey)) this.charts.set(distributionKey, aggregateRows(cache.rows, category, '__count__', 'count', 5, { order: 'value', type: categoryColumn?.type, dateFormat: categoryColumn?.dateFormat }))
     const result = { version: this.version, count: rows.length, page, pages, rows: rows.slice((page - 1) * 20, page * 20), profiles: cache.profiles,
       trend: this.charts.get(trendKey)!, distribution: this.charts.get(distributionKey)!, missing: cache.missing, complete: cache.complete }
     if (this.charts.size > 24) this.charts.clear()

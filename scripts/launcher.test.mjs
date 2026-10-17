@@ -4,7 +4,7 @@ import { createServer } from 'node:http'
 import { mkdtemp, writeFile, mkdir, unlink, rmdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { inspectService, buildFingerprint } from './start.mjs'
+import { inspectService, buildFingerprint, launchDecision } from './start.mjs'
 
 test('identifies our app and refuses to reuse an unrelated local server', async () => {
   const server = createServer((request, response) => {
@@ -27,9 +27,13 @@ test('source fingerprint changes after edits but remains stable without changes'
   await writeFile(script, 'old')
   try {
     const before = await buildFingerprint(root)
+    const cached = { lock: 'same-lock', fingerprint: before }
+    assert.equal(launchDecision('nexus', cached, { ...cached, dependenciesPresent: true, buildPresent: true }), 'reuse')
     assert.equal(await buildFingerprint(root), before)
     await writeFile(script, 'new')
     assert.notEqual(await buildFingerprint(root), before)
+    const awaitFingerprint = await buildFingerprint(root)
+    assert.throws(() => launchDecision('nexus', cached, { lock: 'same-lock', fingerprint: awaitFingerprint, dependenciesPresent: true, buildPresent: true }), /restart|out.of.date/i)
   } finally {
     await unlink(index); await unlink(script); await rmdir(source); await rmdir(root)
   }

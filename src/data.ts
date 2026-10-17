@@ -173,11 +173,12 @@ export function sortRows(source: Row[], columns: Column[], sort: Sort): Row[] {
 
 export function aggregateRows(rows: Row[], dimension: string, metric: string, mode: AggregateMode, limit = 30, options: DimensionOptions = {}): Point[] {
   type Group = { name: string; sum: number; valid: number; count: number; missing: boolean }
-  const groups = new Map<string | null, Group>()
+  const groups = new Map<string | number | null, Group>()
   const countMode = mode === 'count' || metric === '__count__'
   for (const row of rows) {
-    const key = row[dimension]?.trim() || null
-    const group = groups.get(key) ?? { name: key ?? '', sum: 0, valid: 0, count: 0, missing: key === null }
+    const raw = row[dimension]?.trim() || ''
+    const key = !raw ? null : options.type === 'number' ? numberValue(raw) ?? raw : options.type === 'date' ? normalizeDate(raw, options.dateFormat) ?? raw : raw
+    const group = groups.get(key) ?? { name: raw, sum: 0, valid: 0, count: 0, missing: key === null }
     group.count++
     const n = numberValue(row[metric] ?? '')
     if (n !== null) { group.sum += n; group.valid++ }
