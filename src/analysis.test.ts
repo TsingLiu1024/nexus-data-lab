@@ -6,7 +6,13 @@ import { parseCsv } from './data'
 function fixture() {
   const engine = new AnalysisEngine()
   const info = engine.load(parseCsv('城市,金额\n上海,1\n上海,1.00\n北京,10'))
-  const query: AnalysisQuery = { query: '', filters: [], sort: null, page: 1, settings: info.defaults }
+  const query: AnalysisQuery = {
+    query: '',
+    filters: [],
+    sort: null,
+    page: 1,
+    settings: info.defaults,
+  }
   return { engine, info, query }
 }
 
@@ -18,12 +24,23 @@ describe('resident analysis engine', () => {
     expect(result.count).toBe(2)
     expect(result.profiles[1].sum).toBe(2)
     expect(result.distribution).toEqual([{ name: '上海', value: 2, count: 2 }])
-    expect(JSON.parse(engine.exportText(query, 'json'))).toEqual([{ 城市: '上海', 金额: '1' }, { 城市: '上海', 金额: '1.00' }])
+    expect(JSON.parse(engine.exportText(query, 'json'))).toEqual([
+      { 城市: '上海', 金额: '1' },
+      { 城市: '上海', 金额: '1.00' },
+    ])
   })
   it('returns only one bounded page and reuses profiles across sorting and pagination', () => {
     const engine = new AnalysisEngine()
-    const info = engine.load(parseCsv('名称,金额\n' + Array.from({ length: 45 }, (_, i) => `A${i},${i}`).join('\n')))
-    const query: AnalysisQuery = { query: '', filters: [], sort: null, page: 1, settings: info.defaults }
+    const info = engine.load(
+      parseCsv('名称,金额\n' + Array.from({ length: 45 }, (_, i) => `A${i},${i}`).join('\n')),
+    )
+    const query: AnalysisQuery = {
+      query: '',
+      filters: [],
+      sort: null,
+      page: 1,
+      settings: info.defaults,
+    }
     const first = engine.analyze(query)
     const second = engine.analyze({ ...query, page: 2, sort: { key: 'c1', direction: 'desc' } })
     expect(first.rows).toHaveLength(20)
@@ -51,7 +68,9 @@ describe('resident analysis engine', () => {
   })
   it('rejects oversized buffers and invalid encodings before changing data', () => {
     const { engine, query } = fixture()
-    expect(() => engine.stage(new ArrayBuffer(10 * 1024 * 1024 + 1), 'big.csv', 'utf-8')).toThrow(/10 MiB/)
+    expect(() => engine.stage(new ArrayBuffer(10 * 1024 * 1024 + 1), 'big.csv', 'utf-8')).toThrow(
+      /10 MiB/,
+    )
     expect(() => engine.stage(new Uint8Array([0xff]).buffer, 'bad.csv', 'utf-8')).toThrow(/编码/)
     expect(engine.analyze(query).count).toBe(3)
   })

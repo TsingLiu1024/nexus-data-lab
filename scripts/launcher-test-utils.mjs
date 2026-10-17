@@ -3,7 +3,14 @@ export async function exitWithin(promise, timeout = 15_000) {
   try {
     return await Promise.race([
       promise,
-      new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error(`Child did not exit within ${timeout}ms`)), timeout) }),
+      new Promise((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`Child did not exit within ${timeout}ms`)),
+          timeout,
+        )
+      }),
     ])
-  } finally { clearTimeout(timer) }
+  } finally {
+    clearTimeout(timer)
+  }
 }

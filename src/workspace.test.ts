@@ -7,8 +7,20 @@ import type { SavedWorkspace } from './workspace'
 
 function record(): SavedWorkspace {
   const dataset = parseCsv('城市,金额\n上海,1.00\n北京,2', 'saved.csv')
-  return { schema: 1, savedAt: '2026-10-17T08:00:00.000Z', dataset,
-    preferences: { query: '上海', filters: [{ column: 'c1', operator: 'gte', value: '1' }], sort: { key: 'c1', direction: 'desc' }, page: 1, settings: { ...defaultSettings(dataset), kind: 'bar' }, view: 'table', demo: false } }
+  return {
+    schema: 1,
+    savedAt: '2026-10-17T08:00:00.000Z',
+    dataset,
+    preferences: {
+      query: '上海',
+      filters: [{ column: 'c1', operator: 'gte', value: '1' }],
+      sort: { key: 'c1', direction: 'desc' },
+      page: 1,
+      settings: { ...defaultSettings(dataset), kind: 'bar' },
+      view: 'table',
+      demo: false,
+    },
+  }
 }
 
 describe('explicit browser-local workspace', () => {
@@ -16,8 +28,16 @@ describe('explicit browser-local workspace', () => {
     const factory = new IDBFactory()
     expect(await readWorkspace(factory)).toBeNull()
     const saved = record()
-    expect(await saveWorkspace(saved, factory)).toEqual({ name: 'saved.csv', count: 2, savedAt: saved.savedAt })
-    expect(await workspaceInfo(factory)).toEqual({ name: 'saved.csv', count: 2, savedAt: saved.savedAt })
+    expect(await saveWorkspace(saved, factory)).toEqual({
+      name: 'saved.csv',
+      count: 2,
+      savedAt: saved.savedAt,
+    })
+    expect(await workspaceInfo(factory)).toEqual({
+      name: 'saved.csv',
+      count: 2,
+      savedAt: saved.savedAt,
+    })
     expect(await readWorkspace(factory)).toEqual(saved)
   })
   it('deletes both data and metadata and remains safe when already empty', async () => {
@@ -32,9 +52,17 @@ describe('explicit browser-local workspace', () => {
     const factory = new IDBFactory()
     const saved = record()
     await saveWorkspace(saved, factory)
-    const malformed = { ...saved, preferences: { ...saved.preferences, settings: { ...saved.preferences.settings, metric: 'missing' } } }
+    const malformed = {
+      ...saved,
+      preferences: {
+        ...saved.preferences,
+        settings: { ...saved.preferences.settings, metric: 'missing' },
+      },
+    }
     await expect(saveWorkspace(malformed, factory)).rejects.toThrow(/存档|字段/)
-    await expect(saveWorkspace({ ...saved, schema: 99 } as unknown as SavedWorkspace, factory)).rejects.toThrow(/版本|存档/)
+    await expect(
+      saveWorkspace({ ...saved, schema: 99 } as unknown as SavedWorkspace, factory),
+    ).rejects.toThrow(/版本|存档/)
     expect(await readWorkspace(factory)).toEqual(saved)
   })
   it('reports unavailable storage rather than pretending to save', async () => {

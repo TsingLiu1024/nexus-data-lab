@@ -1,10 +1,15 @@
 import { expect, test } from '@playwright/test'
 
-test('explicit save restores data, search, filters, sort, page, view and charts after reload', async ({ page }) => {
+test('explicit save restores data, search, filters, sort, page, view and charts after reload', async ({
+  page,
+}) => {
   await page.goto('/')
   await page.getByRole('button', { name: '导入数据', exact: true }).click()
-  const csv = '编号,城市,金额\n' + Array.from({ length: 45 }, (_, i) => `ID${i},上海,${i}`).join('\n')
-  await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'saved.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+  const csv =
+    '编号,城市,金额\n' + Array.from({ length: 45 }, (_, i) => `ID${i},上海,${i}`).join('\n')
+  await page
+    .getByLabel('选择 CSV 文件')
+    .setInputFiles({ name: 'saved.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
   await page.getByRole('button', { name: '确认导入', exact: true }).click()
   await expect(page.getByTestId('row-count')).toHaveText('45')
   await page.getByLabel('图表维度').selectOption('c2')
@@ -20,7 +25,9 @@ test('explicit save restores data, search, filters, sort, page, view and charts 
   await page.getByRole('button', { name: '按金额排序' }).click()
   await page.getByRole('button', { name: '数据表格', exact: true }).first().click()
   await page.getByRole('button', { name: '下一页' }).click()
-  await expect(page.locator('tbody tr').first().getByRole('cell', { name: 'ID30', exact: true })).toBeVisible()
+  await expect(
+    page.locator('tbody tr').first().getByRole('cell', { name: 'ID30', exact: true }),
+  ).toBeVisible()
   await page.getByRole('button', { name: '保存工作区', exact: true }).click()
   await expect(page.getByTestId('saved-workspace')).toContainText('saved.csv')
   await page.reload()
@@ -28,13 +35,19 @@ test('explicit save restores data, search, filters, sort, page, view and charts 
   await page.getByRole('button', { name: '恢复工作区', exact: true }).click()
   await expect(page.getByTestId('row-count')).toHaveText('35')
   await expect(page.getByPlaceholder('搜索所有字段…')).toHaveValue('上海')
-  await expect(page.locator('tbody tr').first().getByRole('cell', { name: 'ID30', exact: true })).toBeVisible()
+  await expect(
+    page.locator('tbody tr').first().getByRole('cell', { name: 'ID30', exact: true }),
+  ).toBeVisible()
   await expect(page.getByTestId('trend-chart')).toHaveCount(0)
   await page.getByRole('button', { name: '分析概览', exact: true }).first().click()
   await expect(page.getByLabel('图表维度')).toHaveValue('c2')
   await expect(page.getByLabel('聚合方式')).toHaveValue('mean')
-  await expect(page.getByRole('button', { name: '柱状图', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: '柱状图', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   await page.getByRole('button', { name: '删除存档', exact: true }).click()
+  await page.getByRole('button', { name: '确认删除', exact: true }).click()
   await expect(page.getByTestId('saved-workspace')).toContainText('暂无本地存档')
   await page.reload()
   await expect(page.getByRole('button', { name: '恢复工作区', exact: true })).toBeDisabled()

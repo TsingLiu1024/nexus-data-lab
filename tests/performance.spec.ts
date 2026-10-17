@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('large imports run in a real worker and the latest search wins', async ({ page }) => {
   const workers: string[] = []
-  page.on('worker', worker => workers.push(worker.url()))
+  page.on('worker', (worker) => workers.push(worker.url()))
   await page.goto('/')
   await expect(page.getByTestId('row-count')).toHaveText('360')
   await expect.poll(() => workers.length).toBeGreaterThan(0)
@@ -10,17 +10,26 @@ test('large imports run in a real worker and the latest search wins', async ({ p
     const state = { ticks: 0, maximumTaskMs: 0, timer: 0 }
     Object.assign(window, { nexusTiming: state })
     state.timer = window.setInterval(() => state.ticks++, 25)
-    new PerformanceObserver(list => {
-      for (const entry of list.getEntries()) state.maximumTaskMs = Math.max(state.maximumTaskMs, entry.duration)
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries())
+        state.maximumTaskMs = Math.max(state.maximumTaskMs, entry.duration)
     }).observe({ type: 'longtask', buffered: false })
   })
-  const csv = '编号,城市,金额\n' + Array.from({ length: 50_000 }, (_, i) => `ID${i},${i % 2 ? '上海' : '北京'},${i % 1000}`).join('\n')
+  const csv =
+    '编号,城市,金额\n' +
+    Array.from({ length: 50_000 }, (_, i) => `ID${i},${i % 2 ? '上海' : '北京'},${i % 1000}`).join(
+      '\n',
+    )
   await page.getByRole('button', { name: '导入数据', exact: true }).click()
-  await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'large.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+  await page
+    .getByLabel('选择 CSV 文件')
+    .setInputFiles({ name: 'large.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
   await page.getByRole('button', { name: '确认导入', exact: true }).click()
   await expect(page.getByTestId('row-count')).toHaveText('50,000')
   const timing = await page.evaluate(() => {
-    const state = (window as unknown as { nexusTiming: { ticks: number; maximumTaskMs: number; timer: number } }).nexusTiming
+    const state = (
+      window as unknown as { nexusTiming: { ticks: number; maximumTaskMs: number; timer: number } }
+    ).nexusTiming
     clearInterval(state.timer)
     return { ticks: state.ticks, maximumTaskMs: state.maximumTaskMs }
   })

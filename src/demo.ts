@@ -11,8 +11,22 @@ export function createDemo() {
       const i = day * 4 + channel
       const date = new Date(Date.UTC(2026, 6, 1 + day)).toISOString().slice(0, 10)
       const orders = 12 + ((i * 17) % 39)
-      const amount = Math.round((1500 + day * 34 + Math.sin(day / 4) * 680 + ((i * 131) % 2400)) * [1.4, 0.85, 1.15, 0.7][channel])
-      lines.push([`NX${String(i + 1).padStart(6, '0')}`, date, channels[channel], regions[(day + channel) % 4], products[i % 5], amount, orders, i % 29 === 0 ? '处理中' : '已完成'].join(','))
+      const amount = Math.round(
+        (1500 + day * 34 + Math.sin(day / 4) * 680 + ((i * 131) % 2400)) *
+          [1.4, 0.85, 1.15, 0.7][channel],
+      )
+      lines.push(
+        [
+          `NX${String(i + 1).padStart(6, '0')}`,
+          date,
+          channels[channel],
+          regions[(day + channel) % 4],
+          products[i % 5],
+          amount,
+          orders,
+          i % 29 === 0 ? '处理中' : '已完成',
+        ].join(','),
+      )
     }
   }
   return parseCsv(lines.join('\n'), '零售经营数据.csv')

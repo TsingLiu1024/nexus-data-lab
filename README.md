@@ -1,7 +1,7 @@
 # NEXUS Data Lab
 
 [![Quality checks](https://github.com/TsingLiu1024/nexus-data-lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TsingLiu1024/nexus-data-lab/actions/workflows/ci.yml)
-[![Version 1.2.0](https://img.shields.io/badge/version-1.2.0-56d9be)](https://github.com/TsingLiu1024/nexus-data-lab/releases/tag/v1.2.0)
+[![Version 1.3.0](https://img.shields.io/badge/version-1.3.0-56d9be)](https://github.com/TsingLiu1024/nexus-data-lab/releases/tag/v1.3.0)
 [![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-43853d)](https://nodejs.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-758de5)](LICENSE)
 
@@ -29,7 +29,8 @@ A local-first CSV analytics workspace with a Chinese interface. Import, filter, 
 
 - **导入数据**：拖放 / 选择 CSV、TSV；自动或手动选择逗号、制表符、分号与竖线；UTF-8 / GB18030 编码可选。先预览再确认，支持日期格式与逐列类型覆盖。
 - **后台计算**：常驻 Web Worker 保管原始数据，页面只接收 20 条分页记录与聚合结果；150ms 搜索延迟、查询缓存和过期响应隔离。
-- **本地工作区**：主动保存数据与搜索、筛选、排序、图表、视图和页码到 IndexedDB；刷新后手动恢复，支持覆盖保存和删除。
+- **本地工作区**：多个命名存档，保留数据与搜索、筛选、排序、图表、视图和页码。支持重命名、恢复、确认删除与跨标签页过期写入保护；旧单工作区存档自动迁移。
+- **备份与迁移**：所选存档导出为 JSON，跨浏览器或端口导入为新工作区；同名生成副本，不覆盖原存档。备份校验和读写均在 Worker 完成。
 - **一键启动**：Windows 双击 `start.cmd`，自动检查依赖、构建并打开 Edge。
 - **即时分析**：记录数、指标总计、均值、完整率；指标与图表随筛选同步更新。
 - **交互图表**：折线 / 柱状切换；数值与日期按真实横轴间距定位，文本按分类显示；自选维度、数值指标与求和 / 均值 / 计数；分类环图。
@@ -59,6 +60,9 @@ npm run dev
 访问终端显示的本地地址。私有仓库需要先登录有权限的 GitHub 账号。
 
 ```bash
+npm run check            # 格式、静态检查、单元、启动器单元与构建
+npm run format           # 统一格式
+npm run lint             # Oxlint 静态检查
 npm test                 # 数据引擎与本地存档测试
 npm run test:launcher    # 启动器服务识别与源码指纹测试
 npm run test:launcher:smoke # 中文路径下真实启动、复用与端口冲突测试
@@ -77,7 +81,9 @@ Windows 默认使用系统 Microsoft Edge；其他系统使用 Playwright Chromi
 3. 在「分析概览」中选择图表维度、指标与聚合方式；在表格上方搜索或添加条件筛选。
 4. 点击列标题排序；「字段分析」查看当前结果的完整度和分布统计。
 5. 点击「导出结果」，下载 CSV 或 JSON。导出包含全部匹配记录，不局限于当前页。
-6. 点击「保存工作区」后，数据和设置才会写入此浏览器。下次刷新后点「恢复工作区」继续，或点垃圾桶图标删除存档。
+6. 在存档选择器选择「新建工作区」，填写名称并点击「保存工作区」。选择已有存档后，可恢复、重命名，或保存当前分析覆盖所选存档；图上会显示当前分析文件和所选存档，删除需要再次确认。
+7. 点击「导出存档」下载所选已保存版本的 JSON 备份；未保存的改动需要先保存。点击「导入备份」后新建独立副本，再点「恢复工作区」载入。导入失败不会改变已有存档或当前分析。
+8. 其他标签页更新了同一存档时，旧页面不能直接覆盖或删除；点击刷新图标更新列表后再操作。
 
 ## 数据规则与边界
 
@@ -93,7 +99,8 @@ Windows 默认使用系统 Microsoft Edge；其他系统使用 Playwright Chromi
 - 环图以记录数展示分类分布，最多 5 组；超过的类别合并到「其他」。
 - CSV 为避免电子表格执行公式，会给以 `= + - @ Tab CR` 开头的字段添加单引号；需要完全原始值时选择 JSON。
 - 未主动保存的数据仅在当前页面 Worker 内存中，刷新即清空；已保存工作区位于 IndexedDB，删除存档不影响当前分析。应用不会上传数据、写入 localStorage、发送遥测或请求远程字体。
-- 本地存档按浏览器与来源隔离。`localhost:5173` 开发模式、`127.0.0.1:4173` 启动器、其他端口和隐私窗口互不共享存档。需要持续恢复时使用固定启动器地址。
+- 工作区名称为 1–80 个字符，同名保存 / 重命名会提示修改名称。备份文件最大 128 MiB；工作区文本预算 64 MiB，按每个 UTF-16 代码单元三字节保守计量，以限制伪造文件的解码后负载。CSV 原始文件大小、行列上限保持不变。备份包含原始数据，请妥善保管。
+- 本地存档按浏览器与来源隔离。`localhost:5173` 开发模式、`127.0.0.1:4173` 启动器、其他端口和隐私窗口互不共享存档。需要持续恢复时使用固定启动器地址；可用 JSON 备份迁移到其他浏览器或来源。
 
 ## 部署
 
@@ -101,7 +108,7 @@ Windows 默认使用系统 Microsoft Edge；其他系统使用 Playwright Chromi
 
 仓库包含两条 GitHub Actions 工作流：
 
-- **Quality checks**：main push / PR 自动在 Ubuntu Chromium 与 Windows Edge 上运行单元测试、启动器测试、类型检查、构建和浏览器测试（含 50,000 行主线程响应性检查）。同分支新运行自动取消旧运行，失败时分别保留各系统的浏览器诊断文件。
+- **Quality checks**：main push / PR 自动在 Ubuntu Chromium 与 Windows Edge 上运行格式检查、Oxlint、单元测试、启动器测试、类型检查、构建和浏览器测试（含 50,000 行主线程响应性检查）。同分支新运行自动取消旧运行，失败时分别保留各系统的浏览器诊断文件。
 - **Deploy GitHub Pages**：手动运行。先在仓库 Settings → Pages 中选择 GitHub Actions；仓库的可见性与 GitHub 套餐需支持 Pages。工作流不会自动改变仓库可见性。
 
 Dependabot 每周一（上海时间）检查 npm 与 GitHub Actions，次版本 / 补丁更新分组，npm 主版本单独提交 PR。更新需要审阅与 CI 验证，不自动合并。正式交付步骤见 [发布流程](docs/releasing.md)。
@@ -116,7 +123,12 @@ src/
   data.worker.ts        原始数据、导入、导出与本地存档线程
   worker-client.ts      带请求 ID 的 Worker 通信
   use-analysis.ts       异步状态、搜索延迟与过期结果处理
-  workspace.ts          IndexedDB 事务与存档校验
+  workspace.ts          IndexedDB 事务与快照校验
+  workspace-store.ts    多工作区、原子迁移与版本冲突保护
+  workspace-backup.ts   备份编解码与预算校验
+  use-workspaces.ts     工作区操作状态
+  navigation.ts         共享视图定义
+  download.ts           浏览器文件下载
   demo.ts               确定性的合成演示数据
   App.tsx               工作台状态和视图联动
   components/           图表、表格、导入对话框、字段画像
@@ -131,9 +143,15 @@ React · TypeScript · Vite · Papa Parse · Recharts · Lucide · Vitest · Pla
 
 ![导入预览与配置](docs/import-preview.png)
 
-v1.2 验证记录见 [docs/release-readiness-verification.md](docs/release-readiness-verification.md)；[v1.1 验证记录](docs/optimization-verification.md) 与 [初版验证记录](docs/verification.md) 保留供历史参考。
+v1.3 验证记录见 [多工作区与维护验证](docs/workspace-maintenance-verification.md)；v1.2 验证记录见 [docs/release-readiness-verification.md](docs/release-readiness-verification.md)；[v1.1 验证记录](docs/optimization-verification.md) 与 [初版验证记录](docs/verification.md) 保留供历史参考。
 
 解析与导出行为参考 [Papa Parse 官方文档](https://www.papaparse.com/docs)。构建配置参考 [Vite 官方指南](https://vite.dev/guide/)。
+
+## 参与贡献与反馈
+
+请阅读 [贡献指南](CONTRIBUTING.md)。[提交问题](https://github.com/TsingLiu1024/nexus-data-lab/issues/new/choose)时可选择缺陷报告或功能建议表单；提交变更时使用仓库 PR 模板。请提供合成或匿名化的最小示例，避免上传真实 CSV 或工作区备份。私有仓库的参与者需要访问权限。
+
+![多工作区管理](docs/workspaces.png)
 
 ## License
 

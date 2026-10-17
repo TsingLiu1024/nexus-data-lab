@@ -1,12 +1,16 @@
 {
   "name": "nexus-data-lab",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
+    "lint": "oxlint --deny-warnings",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run lint && npm test && npm run test:launcher && npm run build",
     "dev": "vite --host 127.0.0.1",
     "start": "node scripts/start.mjs",
     "test:launcher": "node --test scripts/launcher.test.mjs",
@@ -32,6 +36,8 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "fake-indexeddb": "^6.2.6",
+    "oxlint": "^1.88.0",
+    "prettier": "^3.9.10",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"

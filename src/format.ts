@@ -10,5 +10,7 @@ export function compactNumber(value: number) {
 }
 
 export function formatBytes(value: number) {
-  return value >= 1024 * 1024 ? `${(value / 1024 / 1024).toFixed(1)} MB` : `${Math.max(0.1, value / 1024).toFixed(1)} KB`
+  return value >= 1024 * 1024
+    ? `${(value / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(0.1, value / 1024).toFixed(1)} KB`
 }

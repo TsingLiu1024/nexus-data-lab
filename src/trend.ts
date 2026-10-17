@@ -23,12 +23,16 @@ export function createTrendModel(points: Point[], column?: Column): TrendModel {
     const range = point.name.split(' ~ ')
     const start = coordinate(range[0])
     const end = coordinate(range.at(-1)!)
-    if (start === null || end === null) { model.unplaced.push(point); continue }
+    if (start === null || end === null) {
+      model.unplaced.push(point)
+      continue
+    }
     bounds.push(start, end)
     model.points.push({ ...point, x: start / 2 + end / 2 })
   }
   if (bounds.length) {
-    const min = Math.min(...bounds), max = Math.max(...bounds)
+    const min = Math.min(...bounds),
+      max = Math.max(...bounds)
     const padding = min === max ? (kind === 'time' ? 43_200_000 : Math.abs(min) * 0.05 || 1) : 0
     model.domain = [min - padding, max + padding]
   }
