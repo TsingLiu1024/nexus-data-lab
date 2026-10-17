@@ -15,7 +15,7 @@ Intent: finish the five improvements accepted in chat, retaining local-only proc
 - [x] 1. Reproduce incorrect X spacing in browser tests; implement a tested trend model and continuous axes. Cover negative numbers, non-ISO dates, merged ranges, singletons, missing values, text and both chart kinds.
 - [x] 2. Add launcher smoke coverage and Ubuntu/Windows CI; configure Dependabot. Local verification passed; cloud verification is the Task 5 publish gate.
 - [x] 3. Add changelog, release instructions, accurate README presentation and walkthrough; update package version to 1.2.0.
-- [ ] 4. Run unit, launcher, browser and build checks, obtain an independent code review and resolve material findings.
+- [x] 4. Run unit, launcher, browser and build checks, obtain an independent code review and resolve material findings.
 - [ ] 5. Merge and push; wait for both CI jobs, create matching tag and Release, upload verified packages and checksums, update GitHub metadata and verify remote state.
 
 ## Review focus
@@ -35,3 +35,5 @@ Intent: finish the five improvements accepted in chat, retaining local-only proc
 - Task 2: complete locally — 2 unit tests and 1 real launcher smoke test passed. Ruling: also fix the Windows wrapper's lost exit code, reproduced by the new smoke test, because it hid launch failures from CI and callers.
 - Task 3: complete — package / lockfile version 1.2.0, dynamic UI version, changelog and download instructions, refreshed screenshots, five-frame synthetic-data GIF. About / Topics will be applied after review and push.
 - Task 4: local verification passed — 46 unit + 2 launcher unit + 1 smoke + 19 browser tests, TypeScript / production build, YAML parse and diff whitespace checks. Independent review pending.
+- Final review: two P2 findings fixed with red-to-green regressions: preserve fractional X tick labels; bound child-exit and cleanup waits. Final verification: 46 unit + 3 launcher unit + 1 smoke + 20 browser tests passed, production build and bundled-Worker preview passed.
+- Ruling: cloud CI, release metadata and archive checks are runtime publish gates, verified against actual remote results after this source commit. Singleton date tick density has no demonstrated material regression; broad architecture changes remain outside this release. This source ledger ends at the pre-publication checkpoint; final status is the matching GitHub Release and CI.
