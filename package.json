@@ -1,7 +1,7 @@
 {
   "name": "nexus-data-lab",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
@@ -10,6 +10,7 @@
     "dev": "vite --host 127.0.0.1",
     "start": "node scripts/start.mjs",
     "test:launcher": "node --test scripts/launcher.test.mjs",
+    "test:launcher:smoke": "node --test scripts/launcher.smoke.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",

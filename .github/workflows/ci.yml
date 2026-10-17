@@ -5,10 +5,24 @@ on:
   pull_request:
 permissions:
   contents: read
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: ${{ matrix.os }} / ${{ matrix.channel }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            channel: chromium
+          - os: windows-latest
+            channel: msedge
+    env:
+      PLAYWRIGHT_CHANNEL: ${{ matrix.channel }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,11 +33,12 @@ jobs:
       - run: npm test
       - run: npm run test:launcher
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - run: npm run test:launcher:smoke
+      - run: npx playwright install --with-deps ${{ matrix.channel }}
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: browser-test-results
+          name: browser-test-results-${{ matrix.os }}
           path: test-results/
           retention-days: 7

@@ -8,4 +8,6 @@ if errorlevel 1 (
   exit /b 1
 )
 node scripts\start.mjs
-if errorlevel 1 pause
+set "nexus_exit_code=%errorlevel%"
+if not "%nexus_exit_code%"=="0" pause
+exit /b %nexus_exit_code%

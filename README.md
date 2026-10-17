@@ -1,10 +1,29 @@
 # NEXUS Data Lab
 
+[![Quality checks](https://github.com/TsingLiu1024/nexus-data-lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/TsingLiu1024/nexus-data-lab/actions/workflows/ci.yml)
+[![Version 1.2.0](https://img.shields.io/badge/version-1.2.0-56d9be)](https://github.com/TsingLiu1024/nexus-data-lab/releases/tag/v1.2.0)
+[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-43853d)](https://nodejs.org/)
+[![MIT License](https://img.shields.io/badge/license-MIT-758de5)](LICENSE)
+
 **让数据，清晰可见。** 一个深色科技风的中文 CSV 数据分析工作台。
 
 ![工作台预览](docs/screenshot.png)
 
 在浏览器本地完成数据导入、探索、可视化与导出。无需注册、后端、数据库配置或 API Key。
+
+A local-first CSV analytics workspace with a Chinese interface. Import, filter, visualize and export data in your browser; computation runs in a Web Worker, and workspace storage stays on your device.
+
+适合快速检查业务报表、探索 CSV 数据和制作本地分析结果；金额等数值使用 JavaScript 浮点计算，精确财务核算需另行处理。
+
+## 下载与快速体验
+
+从 [最新正式版本](https://github.com/TsingLiu1024/nexus-data-lab/releases/latest) 下载源码包，解压后双击 `start.cmd`（需安装 Node.js 24+，首次安装依赖需联网）。已准备好静态托管环境时，可下载静态站点包；不能通过双击 HTML 完整运行。
+
+打开后即可使用合成演示数据。以下演示依次展示概览、搜索、图表切换与导入预览：
+
+![操作演示](docs/walkthrough.gif)
+
+版本变化见 [更新记录](CHANGELOG.md)，下载包的 SHA-256 校验值随 Release 提供。当前仓库为私有仓库，查看及下载需要相应访问权限。
 
 ## 功能
 
@@ -13,7 +32,7 @@
 - **本地工作区**：主动保存数据与搜索、筛选、排序、图表、视图和页码到 IndexedDB；刷新后手动恢复，支持覆盖保存和删除。
 - **一键启动**：Windows 双击 `start.cmd`，自动检查依赖、构建并打开 Edge。
 - **即时分析**：记录数、指标总计、均值、完整率；指标与图表随筛选同步更新。
-- **交互图表**：折线 / 柱状切换；自选维度、数值指标与求和 / 均值 / 计数；分类环图。
+- **交互图表**：折线 / 柱状切换；数值与日期按真实横轴间距定位，文本按分类显示；自选维度、数值指标与求和 / 均值 / 计数；分类环图。
 - **数据探索**：全字段搜索、多个条件组合筛选、数值 / 日期 / 文本排序、分页表格。
 - **字段画像**：字段类型、非空唯一值、缺失数量、数值范围与完整度。
 - **结果导出**：当前搜索、筛选与排序结果导出为 CSV / JSON。CSV 带 UTF-8 BOM，转义公式；JSON 保留单元格原始文本。
@@ -42,6 +61,7 @@ npm run dev
 ```bash
 npm test                 # 数据引擎与本地存档测试
 npm run test:launcher    # 启动器服务识别与源码指纹测试
+npm run test:launcher:smoke # 中文路径下真实启动、复用与端口冲突测试
 npm run build            # TypeScript 检查 + 生产构建
 npx playwright install chromium
 npm run test:e2e         # 真实浏览器操作测试
@@ -69,6 +89,7 @@ Windows 默认使用系统 Microsoft Edge；其他系统使用 Playwright Chromi
 - 概览数值最多显示两位小数，表格数值最多六位；原始文本可在单元格悬停或 JSON 导出中查看。数值计算使用 JavaScript 浮点数。
 - 短行补空并提示，额外字段和错误引号拒绝导入，旧数据保留。
 - 趋势图最多展示 30 组；日期按时间、数值维度按横轴数值排序，超限按相邻区间合并；文本分类按指标排序并合并「其他」。均值合并使用有效数值数量加权。
+- 数值 / 日期趋势按真实间距显示；日期使用 UTC 日历日，刻度保留年份。合并区间按中点定位，悬停查看完整区间；缺失横轴值在图下单独统计，不放到任意坐标。折线是观测点之间的线性连接。
 - 环图以记录数展示分类分布，最多 5 组；超过的类别合并到「其他」。
 - CSV 为避免电子表格执行公式，会给以 `= + - @ Tab CR` 开头的字段添加单引号；需要完全原始值时选择 JSON。
 - 未主动保存的数据仅在当前页面 Worker 内存中，刷新即清空；已保存工作区位于 IndexedDB，删除存档不影响当前分析。应用不会上传数据、写入 localStorage、发送遥测或请求远程字体。
@@ -80,8 +101,10 @@ Windows 默认使用系统 Microsoft Edge；其他系统使用 Playwright Chromi
 
 仓库包含两条 GitHub Actions 工作流：
 
-- **Quality checks**：push / PR 自动运行单元测试、启动器测试、类型检查、构建和 Chromium 测试（含 50,000 行主线程响应性检查）。
+- **Quality checks**：main push / PR 自动在 Ubuntu Chromium 与 Windows Edge 上运行单元测试、启动器测试、类型检查、构建和浏览器测试（含 50,000 行主线程响应性检查）。同分支新运行自动取消旧运行，失败时分别保留各系统的浏览器诊断文件。
 - **Deploy GitHub Pages**：手动运行。先在仓库 Settings → Pages 中选择 GitHub Actions；仓库的可见性与 GitHub 套餐需支持 Pages。工作流不会自动改变仓库可见性。
+
+Dependabot 每周一（上海时间）检查 npm 与 GitHub Actions，次版本 / 补丁更新分组，npm 主版本单独提交 PR。更新需要审阅与 CI 验证，不自动合并。正式交付步骤见 [发布流程](docs/releasing.md)。
 
 ## 技术结构
 
@@ -108,7 +131,7 @@ React · TypeScript · Vite · Papa Parse · Recharts · Lucide · Vitest · Pla
 
 ![导入预览与配置](docs/import-preview.png)
 
-v1.1 验证记录见 [docs/optimization-verification.md](docs/optimization-verification.md)；[初版验证记录](docs/verification.md) 保留供历史参考。
+v1.2 验证记录见 [docs/release-readiness-verification.md](docs/release-readiness-verification.md)；[v1.1 验证记录](docs/optimization-verification.md) 与 [初版验证记录](docs/verification.md) 保留供历史参考。
 
 解析与导出行为参考 [Papa Parse 官方文档](https://www.papaparse.com/docs)。构建配置参考 [Vite 官方指南](https://vite.dev/guide/)。
 
