@@ -73,4 +73,19 @@ describe('portable workspace backups', () => {
     oversized.dataset.rows[0].c0 = 'x'.repeat(Math.ceil(WORKSPACE_TEXT_LIMIT / 3))
     expect(() => validateWorkspace(oversized)).toThrow(/预算|过大|超过/)
   })
+  it('rejects excessive filter counts and text lengths before they can trigger analysis', () => {
+    const tooMany = fixture()
+    tooMany.preferences.filters = Array.from({ length: 33 }, () => ({
+      column: 'c0',
+      operator: 'eq',
+      value: '001',
+    }))
+    expect(() => encodeBackup('Too many filters', tooMany)).toThrow(/筛选|条件/)
+    const longQuery = fixture()
+    longQuery.preferences.query = 'x'.repeat(4097)
+    expect(() => encodeBackup('Long search', longQuery)).toThrow(/搜索|字符/)
+    const longValue = fixture()
+    longValue.preferences.filters[0].value = 'x'.repeat(4097)
+    expect(() => encodeBackup('Long filter', longValue)).toThrow(/筛选|字符/)
+  })
 })

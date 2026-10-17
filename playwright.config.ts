@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
+  // Bound browser processes on developer PCs and use the same concurrency in CI.
+  workers: 2,
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
   use: {

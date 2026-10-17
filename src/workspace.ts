@@ -1,6 +1,6 @@
 import type { AnalysisQuery } from './analysis'
 import type { Dataset } from './data'
-import { LIMITS, normalizeDate, numberValue } from './data'
+import { LIMITS, QUERY_LIMITS, normalizeDate, numberValue } from './data'
 
 export type WorkspacePreferences = AnalysisQuery & {
   view: 'overview' | 'table' | 'profiles'
@@ -15,10 +15,13 @@ export type SavedWorkspace = {
 export type WorkspaceInfo = { name: string; count: number; savedAt: string }
 export const WORKSPACE_TEXT_LIMIT = 64 * 1024 * 1024
 
-export function validateWorkspace(value: unknown): asserts value is SavedWorkspace {
+export function validateWorkspace(
+  value: unknown,
+  options: { allowLegacyQueryLimits?: boolean } = {},
+): asserts value is SavedWorkspace {
   const record = value as SavedWorkspace | null
   const fail = () => {
-    throw new Error('本地存档格式或版本无效，请删除存档后重新保存。')
+    throw new Error('工作区格式或版本无效，请检查数据；已有存档未修改。')
   }
   if (
     !record ||
@@ -117,6 +120,12 @@ export function validateWorkspace(value: unknown): asserts value is SavedWorkspa
   )
     return fail()
   knownKeys(p, ['query', 'demo', 'view', 'page', 'filters', 'sort', 'settings'])
+  if (!options.allowLegacyQueryLimits) {
+    if (p.query.length > QUERY_LIMITS.text) throw new Error('搜索文本不能超过 4096 个字符。')
+    if (p.filters.length > QUERY_LIMITS.filters) throw new Error('筛选条件不能超过 32 个。')
+    if (p.filters.some((filter) => filter.value.length > QUERY_LIMITS.text))
+      throw new Error('筛选值不能超过 4096 个字符。')
+  }
   text(p.query)
   for (const filter of p.filters) {
     knownKeys(filter, ['column', 'operator', 'value'])

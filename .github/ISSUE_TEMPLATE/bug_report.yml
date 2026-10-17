@@ -60,7 +60,7 @@ body:
     id: workspace
     attributes:
       label: 工作区或备份信息（如相关）
-      description: 说明保存、恢复或 .workspacebackup 导入导出的操作，以及是否使用旧版存档；不要附真实备份。
+      description: 说明保存、恢复或 .json 导入导出的操作，以及是否使用旧版存档；不要附真实备份。
       placeholder: |
         使用地址（协议、主机、端口，不含私人路径或参数）：
         是否更换浏览器、端口、主机名或使用隐私窗口：

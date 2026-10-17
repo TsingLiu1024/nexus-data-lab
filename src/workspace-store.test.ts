@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { IDBFactory, IDBObjectStore as FakeStore } from 'fake-indexeddb'
 import { defaultSettings } from './analysis'
 import { parseCsv } from './data'
-import { readWorkspace, saveWorkspace, type SavedWorkspace } from './workspace'
+import {
+  readWorkspace,
+  saveWorkspace,
+  workspaceTransaction,
+  type SavedWorkspace,
+} from './workspace'
 import {
   deleteNamedWorkspace,
   listWorkspaces,
@@ -30,6 +35,21 @@ function snapshot(name = 'raw.csv'): SavedWorkspace {
 }
 
 describe('named browser workspaces', () => {
+  it('preserves older local query settings beyond new portable-backup limits during migration', async () => {
+    const factory = new IDBFactory(),
+      old = snapshot()
+    old.preferences.filters = Array.from({ length: 33 }, () => ({
+      column: 'c0',
+      operator: 'not-empty',
+      value: '',
+    }))
+    await workspaceTransaction<void>(factory, 'readwrite', (store, result) => {
+      store.put(old, 'current')
+      result()
+    })
+    const [info] = await listWorkspaces(factory)
+    expect((await readNamedWorkspace(info.id, factory)).snapshot).toEqual(old)
+  })
   it('saves two independent datasets and preserves every raw cell and preference', async () => {
     const factory = new IDBFactory(),
       first = snapshot('a.csv'),

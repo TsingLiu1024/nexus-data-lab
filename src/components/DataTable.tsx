@@ -10,7 +10,7 @@ import {
   SearchX,
   X,
 } from 'lucide-react'
-import { numberValue } from '../data'
+import { numberValue, QUERY_LIMITS } from '../data'
 import type { Column, Filter, Row, Sort } from '../data'
 import { formatNumber } from '../format'
 import { typeIcons } from './Profiles'
@@ -97,6 +97,10 @@ export function DataTable({
 
   function apply(event: React.FormEvent) {
     event.preventDefault()
+    if (filters.length >= QUERY_LIMITS.filters) {
+      setError('最多支持 32 个筛选条件，请先移除部分条件。')
+      return
+    }
     const noValue = operator === 'empty' || operator === 'not-empty'
     if (!noValue && !value.trim()) {
       setError('请填写筛选值。')
@@ -125,6 +129,7 @@ export function DataTable({
             <Search />
             <input
               aria-label="搜索所有字段"
+              maxLength={QUERY_LIMITS.text}
               placeholder="搜索所有字段…"
               value={query}
               onChange={(e) => onQuery(e.target.value)}
@@ -189,6 +194,7 @@ export function DataTable({
                     筛选值
                     <input
                       aria-label="筛选值"
+                      maxLength={QUERY_LIMITS.text}
                       value={value}
                       onChange={(e) => setValue(e.target.value)}
                       placeholder={

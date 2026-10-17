@@ -58,9 +58,9 @@ IndexedDB 按浏览器和来源（协议、主机、端口）隔离。开发模�
 
 ## 提交问题与变更
 
-使用 [缺陷报告](https://github.com/TsingLiu1024/nexus-data-lab/issues/new?template=bug_report.yml) 提供复现步骤、预期与实际结果、应用版本、浏览器和操作系统。CSV 问题请说明编码、分隔符、日期格式、列类型和数据规模；工作区问题请说明来源地址、保存或恢复步骤，以及是否涉及 `.workspacebackup` 备份。
+使用 [缺陷报告](https://github.com/TsingLiu1024/nexus-data-lab/issues/new?template=bug_report.yml) 提供复现步骤、预期与实际结果、应用版本、浏览器和操作系统。CSV 问题请说明编码、分隔符、日期格式、列类型和数据规模；工作区问题请说明来源地址、保存或恢复步骤，以及是否涉及 `.json` 备份。
 
-Issue、PR、截图、日志和测试夹具中不要包含源数据集、私人信息、凭据或真实工作区备份。使用合成或充分匿名化的最小示例；`.workspacebackup` 也可能包含完整数据，不能视为普通诊断日志。模板不要求上传任何私人文件。
+Issue、PR、截图、日志和测试夹具中不要包含源数据集、私人信息、凭据或真实工作区备份。使用合成或充分匿名化的最小示例；`.json` 也可能包含完整数据，不能视为普通诊断日志。模板不要求上传任何私人文件。
 
 使用 [功能建议](https://github.com/TsingLiu1024/nexus-data-lab/issues/new?template=feature_request.yml) 描述要解决的问题与希望获得的结果。较大的行为变化宜先在 Issue 中讨论；保持每个 PR 的目标集中，并同步更新受影响的说明和测试。PR 描述应包含问题、具体改动与验证结果，便于维护者审阅。
 

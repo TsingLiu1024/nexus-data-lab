@@ -90,7 +90,8 @@ async function migrateLegacy(factory: IDBFactory | undefined) {
           result()
           return
         }
-        validateWorkspace(snapshot)
+        // Existing local saves predate the new query limits; migrate without truncating them.
+        validateWorkspace(snapshot, { allowLegacyQueryLimits: true })
         collectInfos(
           store,
           (entries) => {
@@ -194,7 +195,7 @@ export async function readNamedWorkspace(
         data.onsuccess = () => {
           try {
             const snapshot: unknown = data.result
-            validateWorkspace(snapshot)
+            validateWorkspace(snapshot, { allowLegacyQueryLimits: true })
             if (
               info.id !== id ||
               snapshot.dataset.name !== info.filename ||

@@ -24,6 +24,7 @@ export type Sort = { key: string; direction: 'asc' | 'desc' } | null
 export type AggregateMode = 'sum' | 'mean' | 'count'
 export type Point = { name: string; value: number | null; count: number }
 export const LIMITS = { bytes: 10 * 1024 * 1024, rows: 50_000, columns: 100 }
+export const QUERY_LIMITS = { filters: 32, text: 4096 }
 export type ColumnTypes = Record<string, Column['type'] | 'auto'>
 export type ImportOptions = {
   sourceByteSize?: number
