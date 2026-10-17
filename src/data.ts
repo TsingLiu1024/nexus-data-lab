@@ -6,14 +6,14 @@ export type Dataset = { name: string; columns: Column[]; rows: Row[]; warnings: 
 export type Filter = { column: string; operator: 'contains' | 'eq' | 'gt' | 'gte' | 'lt' | 'lte' | 'empty' | 'not-empty'; value: string }
 export type Sort = { key: string; direction: 'asc' | 'desc' } | null
 export type AggregateMode = 'sum' | 'mean' | 'count'
-export type Point = { name: string; value: number; count: number }
+export type Point = { name: string; value: number | null; count: number }
 export const LIMITS = { bytes: 10 * 1024 * 1024, rows: 50_000, columns: 100 }
 
 export function numberValue(value: string): number | null {
   const text = value.trim()
   if (!/^[+-]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) return null
   const number = Number(text.replaceAll(',', ''))
-  return Number.isFinite(number) ? number : null
+  return Number.isFinite(number) && (!Number.isInteger(number) || Number.isSafeInteger(number)) ? number : null
 }
 
 function isDate(value: string) {
@@ -120,34 +120,45 @@ export function selectRows(dataset: Dataset, query = '', filters: Filter[] = [],
 }
 
 export function aggregateRows(rows: Row[], dimension: string, metric: string, mode: AggregateMode, limit = 30): Point[] {
-  type Group = { name: string; sum: number; valid: number; count: number }
-  const groups = new Map<string, Group>()
+  type Group = { name: string; sum: number; valid: number; count: number; missing: boolean }
+  const groups = new Map<string | null, Group>()
   const countMode = mode === 'count' || metric === '__count__'
   for (const row of rows) {
-    const name = row[dimension]?.trim() || '（缺失）'
-    const group = groups.get(name) ?? { name, sum: 0, valid: 0, count: 0 }
+    const key = row[dimension]?.trim() || null
+    const group = groups.get(key) ?? { name: key ?? '', sum: 0, valid: 0, count: 0, missing: key === null }
     group.count++
     const n = numberValue(row[metric] ?? '')
     if (n !== null) { group.sum += n; group.valid++ }
-    groups.set(name, group)
+    groups.set(key, group)
   }
-  const value = (g: Group) => countMode ? g.count : mode === 'mean' ? (g.valid ? g.sum / g.valid : 0) : g.sum
+  const missingGroup = groups.get(null)
+  if (missingGroup) {
+    let label = '（缺失）'
+    while (groups.has(label)) label += '·'
+    missingGroup.name = label
+  }
+  const value = (g: Group): number | null => countMode ? g.count : !g.valid ? null : mode === 'mean' ? g.sum / g.valid : g.sum
   let result = [...groups.values()]
-  const dates = result.length > 0 && result.every(g => isDate(g.name))
-  result.sort(dates ? (a, b) => a.name.localeCompare(b.name) : (a, b) => value(b) - value(a))
+  const presentGroups = result.filter(g => !g.missing)
+  const dates = presentGroups.length > 0 && presentGroups.every(g => isDate(g.name))
+  result.sort(dates ? (a, b) => a.missing ? 1 : b.missing ? -1 : a.name.localeCompare(b.name) : (a, b) => {
+    const left = value(a), right = value(b)
+    return left === null ? (right === null ? 0 : 1) : right === null ? -1 : right - left
+  })
   const cap = Math.max(2, limit)
-  const merge = (batch: Group[], name: string): Group => ({ name,
+  const merge = (batch: Group[], name: string): Group => ({ name, missing: false,
     sum: batch.reduce((s, g) => s + g.sum, 0), valid: batch.reduce((s, g) => s + g.valid, 0), count: batch.reduce((s, g) => s + g.count, 0),
   })
   if (result.length > cap) {
     if (dates) {
-      const size = Math.ceil(result.length / cap)
+      const orderedDates = result.filter(g => !g.missing)
+      const size = Math.ceil(orderedDates.length / (cap - (missingGroup ? 1 : 0)))
       const batches = []
-      for (let i = 0; i < result.length; i += size) {
-        const batch = result.slice(i, i + size)
-        batches.push(merge(batch, `${batch[0].name} ~ ${batch.at(-1)!.name}`))
+      for (let i = 0; i < orderedDates.length; i += size) {
+        const batch = orderedDates.slice(i, i + size)
+        batches.push(merge(batch, batch.length === 1 ? batch[0].name : `${batch[0].name} ~ ${batch.at(-1)!.name}`))
       }
-      result = batches
+      result = missingGroup ? [...batches, missingGroup] : batches
     } else {
       const tail = result.slice(cap - 1)
       let other = `其他（${tail.length} 类）`

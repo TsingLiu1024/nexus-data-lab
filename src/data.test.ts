@@ -43,6 +43,13 @@ describe('CSV import preserves real-world data', () => {
 })
 
 describe('numeric handling and profiling', () => {
+  it('preserves integers beyond safe numeric precision as text and sorts them without rounding', () => {
+    const d = parseCsv('编号\n9007199254740993\n9007199254740992')
+    expect(d.columns[0].type).toBe('text')
+    expect(d.rows[0].c0).toBe('9007199254740993')
+    expect(profileColumn(d.rows, d.columns[0]).sum).toBeNull()
+    expect(selectRows(d, '', [], { key: 'c0', direction: 'asc' }).map(r => r.c0)).toEqual(['9007199254740992', '9007199254740993'])
+  })
   it('distinguishes missing, zero, grouped numbers and non-numbers', () => {
     expect(['', ' ', '0', '-2.5', '1,200.50', '1e3', '12abc', 'Infinity', '1,2'].map(numberValue))
       .toEqual([null, null, 0, -2.5, 1200.5, 1000, null, null, null])
@@ -93,8 +100,27 @@ describe('chart aggregation', () => {
     const data = Array.from({ length: 50 }, (_, i) => ({ x: `category${i}`, y: '1' }))
     const points = aggregateRows(data, 'x', 'y', 'sum', 8)
     expect(points).toHaveLength(8)
-    expect(points.reduce((sum, p) => sum + p.value, 0)).toBe(50)
+    expect(points.reduce((sum, p) => sum + (p.value ?? 0), 0)).toBe(50)
     expect(points.find(p => p.name.startsWith('其他'))?.value).toBe(43)
+  })
+  it('does not invent a zero mean for an all-missing group', () => {
+    expect(aggregateRows([{ x: 'A', y: '' }, { x: 'B', y: '0' }], 'x', 'y', 'mean'))
+      .toEqual([{ name: 'B', value: 0, count: 1 }, { name: 'A', value: null, count: 1 }])
+    expect(aggregateRows([{ x: 'A', y: '' }], 'x', 'y', 'sum')[0].value).toBeNull()
+  })
+  it('keeps sparse date groups chronological with missing dates separate and last', () => {
+    const result = aggregateRows([{ x: '2026-02-01', y: '100' }, { x: '', y: '200' }, { x: '2026-01-01', y: '1' }], 'x', 'y', 'sum')
+    expect(result.map(p => p.name)).toEqual(['2026-01-01', '2026-02-01', '（缺失）'])
+  })
+  it('keeps a missing date bucket separate when coalescing date ranges', () => {
+    const result = aggregateRows([{ x: '2026-01-01', y: '10' }, { x: '2026-01-02', y: '' }, { x: '2026-01-03', y: '20' }, { x: '', y: '100' }], 'x', 'y', 'mean', 2)
+    expect(result).toEqual([{ name: '2026-01-01 ~ 2026-01-03', value: 15, count: 3 }, { name: '（缺失）', value: 100, count: 1 }])
+  })
+  it('keeps a literal missing-label category distinct from actual missing values', () => {
+    const result = aggregateRows([{ x: '（缺失）', y: '1' }, { x: '', y: '2' }], 'x', 'y', 'sum')
+    expect(result).toHaveLength(2)
+    expect(result.map(p => p.value).sort()).toEqual([1, 2])
+    expect(new Set(result.map(p => p.name)).size).toBe(2)
   })
 })
 

@@ -22,6 +22,11 @@ test('import → query → filter → export all use the same rows', async ({ pa
   await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'sales.csv', mimeType: 'text/csv', buffer: Buffer.from(fixture) })
   await expect(page.getByTestId('row-count')).toHaveText('4')
   await expect(page.getByRole('cell', { name: '001', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '按销售额排序' }).click()
+  await expect(page.locator('tbody tr').first().getByRole('cell', { name: '002', exact: true })).toBeVisible()
+  await expect(page.locator('tbody tr').last().getByRole('cell', { name: '004', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '按销售额排序' }).click()
+  await expect(page.locator('tbody tr').first().getByRole('cell', { name: '001', exact: true })).toBeVisible()
   await page.getByPlaceholder('搜索所有字段…').fill('官网')
   await expect(page.getByTestId('row-count')).toHaveText('2')
   await expect(page.getByTestId('metric-total')).toContainText('130')
@@ -95,4 +100,24 @@ test('mobile layout stays within viewport and import remains accessible', async 
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.getByRole('button', { name: '导入数据', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
+})
+
+test('GB18030 import works and unsupported encodings can be corrected without losing data', async ({ page }) => {
+  await page.getByRole('button', { name: '导入数据', exact: true }).click()
+  // GBK subset of GB18030: 姓名,城市\n张三,北京
+  const buffer = Buffer.from('d0d5c3fb2cb3c7cad00ad5c5c8fd2cb1b1bea9', 'hex')
+  await page.getByLabel('选择 CSV 文件').setInputFiles({ name: '中文.csv', mimeType: 'text/csv', buffer })
+  await expect(page.getByRole('alert')).toContainText('编码')
+  await expect(page.getByTestId('row-count')).toHaveText('360')
+  await page.getByLabel('文件编码').selectOption('gb18030')
+  await page.getByLabel('选择 CSV 文件').setInputFiles({ name: '中文.csv', mimeType: 'text/csv', buffer })
+  await expect(page.getByTestId('row-count')).toHaveText('1')
+  await expect(page.getByRole('cell', { name: '张三', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '北京', exact: true })).toBeVisible()
+})
+
+test('summary totals retain cents from decimal-valued imports', async ({ page }) => {
+  await page.getByRole('button', { name: '导入数据', exact: true }).click()
+  await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'decimal.csv', mimeType: 'text/csv', buffer: Buffer.from('渠道,金额\n官网,100.25\n门店,20.5') })
+  await expect(page.getByTestId('metric-total')).toHaveText('120.75')
 })
