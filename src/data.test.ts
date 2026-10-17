@@ -2,6 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { parseCsv, numberValue, profileColumn, selectRows, aggregateRows, serializeCsv, serializeJson, LIMITS } from './data'
 
 describe('CSV import preserves real-world data', () => {
+  it('uses original file bytes for the size cap, including GB18030 files', () => {
+    const text = '名称\n' + ('中'.repeat(90) + '\n').repeat(40_000)
+    expect(parseCsv(text, '中文.csv', { sourceByteSize: 7_240_005 }).rows).toHaveLength(40_000)
+    expect(() => parseCsv('a\nx', 'large.csv', { sourceByteSize: LIMITS.bytes + 1 })).toThrow(/10 MiB/)
+  })
   it('parses BOM, quoted commas, embedded newlines and leading-zero identifiers', () => {
     const d = parseCsv('\uFEFF编号,备注,金额\r\n001,"上海,华东",12\r\n002,"两行\n备注",0\r\n')
     expect(d.rows).toHaveLength(2)
@@ -67,6 +72,12 @@ describe('numeric handling and profiling', () => {
 })
 
 describe('shared query pipeline', () => {
+  it('matches numerically equal values without coercing text identifiers', () => {
+    const d = parseCsv('名称,金额,编号\nA,1,001\nB,1.00,1\nC,2,002')
+    expect(selectRows(d, '', [{ column: 'c1', operator: 'eq', value: '1' }]).map(r => r.c0)).toEqual(['A', 'B'])
+    expect(selectRows(d, '', [{ column: 'c2', operator: 'eq', value: '1' }]).map(r => r.c0)).toEqual(['B'])
+    expect(selectRows(d, '', [{ column: 'c1', operator: 'eq', value: '' }])).toEqual([])
+  })
   const fixture = () => parseCsv('名称,数值,地区\nAlpha,100,上海\nBeta,2,北京\nGamma,,上海\nDelta,10,上海')
   it('combines case-insensitive search with numeric and categorical filters', () => {
     const d = fixture()
@@ -88,6 +99,12 @@ describe('shared query pipeline', () => {
 })
 
 describe('chart aggregation', () => {
+  it('orders numeric trend dimensions by X while distributions retain value order', () => {
+    const data = [{ x: '1', y: '100' }, { x: '2', y: '1' }, { x: '3', y: '50' }]
+    expect(aggregateRows(data, 'x', 'y', 'sum', 30, { type: 'number' }).map(p => p.name)).toEqual(['1', '2', '3'])
+    expect(aggregateRows(data, 'x', 'y', 'sum', 30, { type: 'number', order: 'value' }).map(p => p.name)).toEqual(['1', '3', '2'])
+    expect(aggregateRows(data, 'x', 'y', 'sum', 2, { type: 'number' })).toEqual([{ name: '1 ~ 2', value: 101, count: 2 }, { name: '3', value: 50, count: 1 }])
+  })
   const rows = [{ x: '2026-02-02', y: '10' }, { x: '2026-01-01', y: '0' }, { x: '2026-02-02', y: '' }, { x: '2026-02-02', y: '20' }]
   it('orders date groups chronologically and sums values', () => {
     expect(aggregateRows(rows, 'x', 'y', 'sum')).toEqual([{ name: '2026-01-01', value: 0, count: 1 }, { name: '2026-02-02', value: 30, count: 3 }])

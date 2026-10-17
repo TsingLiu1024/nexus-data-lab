@@ -51,7 +51,7 @@ export function ImportDialog({ onClose, onImport }: Props) {
       if (text.includes('\u0000')) throw new Error('文件包含二进制或 UTF-16 内容，请另存为 UTF-8 CSV。')
       // Yield once so the loading state paints before parsing bounded local input.
       await new Promise(resolve => setTimeout(resolve, 30))
-      const dataset = parseCsv(text, file.name)
+      const dataset = parseCsv(text, file.name, { sourceByteSize: file.size })
       dataset.byteSize = file.size
       if (active.current) onImport(dataset)
     } catch (reason) {

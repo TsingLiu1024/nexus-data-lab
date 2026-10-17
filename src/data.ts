@@ -8,6 +8,8 @@ export type Sort = { key: string; direction: 'asc' | 'desc' } | null
 export type AggregateMode = 'sum' | 'mean' | 'count'
 export type Point = { name: string; value: number | null; count: number }
 export const LIMITS = { bytes: 10 * 1024 * 1024, rows: 50_000, columns: 100 }
+export type ImportOptions = { sourceByteSize?: number }
+export type DimensionOptions = { type?: Column['type']; order?: 'dimension' | 'value' }
 
 export function numberValue(value: string): number | null {
   const text = value.trim()
@@ -30,8 +32,9 @@ function inferType(values: string[]): Column['type'] {
   return 'text'
 }
 
-export function parseCsv(text: string, name = 'data.csv'): Dataset {
-  const byteSize = new TextEncoder().encode(text).byteLength
+export function parseCsv(text: string, name = 'data.csv', options: ImportOptions = {}): Dataset {
+  const byteSize = options.sourceByteSize ?? new TextEncoder().encode(text).byteLength
+  if (!Number.isFinite(byteSize) || byteSize < 0) throw new Error('文件大小无效。')
   if (byteSize > LIMITS.bytes) throw new Error('文件内容超过 10 MiB，请拆分后导入。')
   if (!text.trim()) throw new Error('文件为空，请选择包含表头与数据的 CSV 文件。')
   const parsed = Papa.parse<string[]>(text.replace(/^\uFEFF/, ''), {
@@ -80,14 +83,19 @@ export function profileColumn(rows: Row[], column: Column) {
   }
 }
 
-function matchesFilter(row: Row, filter: Filter) {
+function matchesFilter(row: Row, filter: Filter, column?: Column) {
+  if (!column) return false
   const value = row[filter.column] ?? ''
   const needle = filter.value.toLocaleLowerCase()
   switch (filter.operator) {
     case 'empty': return value.trim() === ''
     case 'not-empty': return value.trim() !== ''
     case 'contains': return value.toLocaleLowerCase().includes(needle)
-    case 'eq': return value.toLocaleLowerCase() === needle
+    case 'eq': {
+      if (column.type !== 'number') return value.toLocaleLowerCase() === needle
+      const left = numberValue(value), right = numberValue(filter.value)
+      return left !== null && right !== null && left === right
+    }
     default: {
       const left = numberValue(value)
       const right = numberValue(filter.value)
@@ -104,8 +112,9 @@ function matchesFilter(row: Row, filter: Filter) {
 
 export function selectRows(dataset: Dataset, query = '', filters: Filter[] = [], sort: Sort = null): Row[] {
   const needle = query.trim().toLocaleLowerCase()
+  const columns = new Map(dataset.columns.map(c => [c.key, c]))
   const rows = dataset.rows.filter(row =>
-    (!needle || dataset.columns.some(c => row[c.key].toLocaleLowerCase().includes(needle))) && filters.every(f => matchesFilter(row, f)),
+    (!needle || dataset.columns.some(c => row[c.key].toLocaleLowerCase().includes(needle))) && filters.every(f => matchesFilter(row, f, columns.get(f.column))),
   )
   if (!sort) return rows
   const column = dataset.columns.find(c => c.key === sort.key)
@@ -119,7 +128,7 @@ export function selectRows(dataset: Dataset, query = '', filters: Filter[] = [],
   })
 }
 
-export function aggregateRows(rows: Row[], dimension: string, metric: string, mode: AggregateMode, limit = 30): Point[] {
+export function aggregateRows(rows: Row[], dimension: string, metric: string, mode: AggregateMode, limit = 30, options: DimensionOptions = {}): Point[] {
   type Group = { name: string; sum: number; valid: number; count: number; missing: boolean }
   const groups = new Map<string | null, Group>()
   const countMode = mode === 'count' || metric === '__count__'
@@ -140,8 +149,10 @@ export function aggregateRows(rows: Row[], dimension: string, metric: string, mo
   const value = (g: Group): number | null => countMode ? g.count : !g.valid ? null : mode === 'mean' ? g.sum / g.valid : g.sum
   let result = [...groups.values()]
   const presentGroups = result.filter(g => !g.missing)
-  const dates = presentGroups.length > 0 && presentGroups.every(g => isDate(g.name))
-  result.sort(dates ? (a, b) => a.missing ? 1 : b.missing ? -1 : a.name.localeCompare(b.name) : (a, b) => {
+  const dates = options.type === 'date' || (!options.type && presentGroups.length > 0 && presentGroups.every(g => isDate(g.name)))
+  const numeric = options.type === 'number'
+  const ordered = options.order !== 'value' && (dates || numeric)
+  result.sort(ordered ? (a, b) => a.missing ? 1 : b.missing ? -1 : numeric ? (numberValue(a.name) ?? 0) - (numberValue(b.name) ?? 0) : a.name.localeCompare(b.name) : (a, b) => {
     const left = value(a), right = value(b)
     return left === null ? (right === null ? 0 : 1) : right === null ? -1 : right - left
   })
@@ -150,7 +161,7 @@ export function aggregateRows(rows: Row[], dimension: string, metric: string, mo
     sum: batch.reduce((s, g) => s + g.sum, 0), valid: batch.reduce((s, g) => s + g.valid, 0), count: batch.reduce((s, g) => s + g.count, 0),
   })
   if (result.length > cap) {
-    if (dates) {
+    if (ordered) {
       const orderedDates = result.filter(g => !g.missing)
       const size = Math.ceil(orderedDates.length / (cap - (missingGroup ? 1 : 0)))
       const batches = []

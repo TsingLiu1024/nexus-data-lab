@@ -16,7 +16,8 @@ type Props = {
 export function Charts({ columns, rows, dimension, metric, mode, onDimension, onMetric, onMode, category, onCategory }: Props) {
   const [kind, setKind] = useState<'area' | 'bar'>('area')
   const numeric = columns.filter(c => c.type === 'number')
-  const points = useMemo(() => aggregateRows(rows, dimension, metric, mode), [rows, dimension, metric, mode])
+  const dimensionType = columns.find(c => c.key === dimension)?.type
+  const points = useMemo(() => aggregateRows(rows, dimension, metric, mode, 30, { type: dimensionType }), [rows, dimension, metric, mode, dimensionType])
   const distribution = useMemo(() => aggregateRows(rows, category, '__count__', 'count', 5), [rows, category])
   const metricLabel = metric === '__count__' || mode === 'count' ? '记录数' : columns.find(c => c.key === metric)?.label ?? ''
   const modeLabel = mode === 'count' || metric === '__count__' ? '计数' : mode === 'mean' ? '均值' : '合计'
