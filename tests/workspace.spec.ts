@@ -20,6 +20,7 @@ test('demo loads, chart choices work, and the workspace has no runtime errors', 
 test('import → query → filter → export all use the same rows', async ({ page }) => {
   await page.getByRole('button', { name: '导入数据', exact: true }).click()
   await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'sales.csv', mimeType: 'text/csv', buffer: Buffer.from(fixture) })
+  await page.getByRole('button', { name: '确认导入', exact: true }).click()
   await expect(page.getByTestId('row-count')).toHaveText('4')
   await expect(page.getByRole('cell', { name: '001', exact: true })).toBeVisible()
   await page.getByRole('button', { name: '按销售额排序' }).click()
@@ -70,7 +71,7 @@ test('invalid imports preserve current dataset, dialog traps focus and closes wi
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
   await page.keyboard.press('Shift+Tab')
-  await expect(page.getByLabel('文件编码', { exact: false })).toBeFocused()
+  await expect(page.getByRole('button', { name: '取消导入', exact: true })).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(page.getByRole('button', { name: '关闭导入窗口' })).toBeFocused()
   await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'bad.csv', mimeType: 'text/csv', buffer: Buffer.from('a,b\nx,1,extra') })
@@ -84,6 +85,7 @@ test('invalid imports preserve current dataset, dialog traps focus and closes wi
 test('text-only CSV supports count charts, JSON export and restoring demo', async ({ page }) => {
   await page.getByRole('button', { name: '导入数据', exact: true }).click()
   await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'names.csv', mimeType: 'text/csv', buffer: Buffer.from('姓名,城市\n小明,北京\n小红,上海\n小李,北京') })
+  await page.getByRole('button', { name: '确认导入', exact: true }).click()
   await expect(page.getByTestId('row-count')).toHaveText('3')
   await expect(page.getByLabel('图表指标')).toHaveValue('__count__')
   await page.getByRole('button', { name: '导出结果', exact: true }).click()
@@ -111,6 +113,7 @@ test('GB18030 import works and unsupported encodings can be corrected without lo
   await expect(page.getByTestId('row-count')).toHaveText('360')
   await page.getByLabel('文件编码').selectOption('gb18030')
   await page.getByLabel('选择 CSV 文件').setInputFiles({ name: '中文.csv', mimeType: 'text/csv', buffer })
+  await page.getByRole('button', { name: '确认导入', exact: true }).click()
   await expect(page.getByTestId('row-count')).toHaveText('1')
   await expect(page.getByRole('cell', { name: '张三', exact: true })).toBeVisible()
   await expect(page.getByRole('cell', { name: '北京', exact: true })).toBeVisible()
@@ -119,5 +122,6 @@ test('GB18030 import works and unsupported encodings can be corrected without lo
 test('summary totals retain cents from decimal-valued imports', async ({ page }) => {
   await page.getByRole('button', { name: '导入数据', exact: true }).click()
   await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'decimal.csv', mimeType: 'text/csv', buffer: Buffer.from('渠道,金额\n官网,100.25\n门店,20.5') })
+  await page.getByRole('button', { name: '确认导入', exact: true }).click()
   await expect(page.getByTestId('metric-total')).toHaveText('120.75')
 })

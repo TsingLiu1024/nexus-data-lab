@@ -17,6 +17,7 @@ test('large imports run in a real worker and the latest search wins', async ({ p
   const csv = '编号,城市,金额\n' + Array.from({ length: 50_000 }, (_, i) => `ID${i},${i % 2 ? '上海' : '北京'},${i % 1000}`).join('\n')
   await page.getByRole('button', { name: '导入数据', exact: true }).click()
   await page.getByLabel('选择 CSV 文件').setInputFiles({ name: 'large.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+  await page.getByRole('button', { name: '确认导入', exact: true }).click()
   await expect(page.getByTestId('row-count')).toHaveText('50,000')
   const timing = await page.evaluate(() => {
     const state = (window as unknown as { nexusTiming: { ticks: number; maximumTaskMs: number; timer: number } }).nexusTiming
