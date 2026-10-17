@@ -1,5 +1,6 @@
-import type { AggregateMode, Dataset, Filter, ImportOptions, Point, Row, Sort } from './data'
-import { aggregateRows, LIMITS, parseCsv, profileColumn, selectRows, serializeCsv, serializeJson, sortRows } from './data'
+import type { AggregateMode, ColumnTypes, Dataset, DateFormat, Filter, ImportOptions, Point, Row, Sort } from './data'
+import { aggregateRows, applyColumnTypes, LIMITS, parseCsv, profileColumn, selectRows, serializeCsv, serializeJson, sortRows } from './data'
+import type { SavedWorkspace, WorkspacePreferences } from './workspace'
 
 export type ChartSettings = { dimension: string; metric: string; category: string; mode: AggregateMode; kind: 'area' | 'bar' }
 export type DatasetInfo = Omit<Dataset, 'rows'> & { count: number; version: number; defaults: ChartSettings }
@@ -19,6 +20,7 @@ export class AnalysisEngine {
   private dataset: Dataset | null = null
   private version = 0
   private staged: Dataset | null = null
+  private stagedDateFormat: DateFormat = 'iso'
   private cache: { key: string; rows: Row[]; profiles: ReturnType<typeof profileColumn>[]; missing: number; complete: number | null } | null = null
   private sorted: { key: string; rows: Row[] } | null = null
   private charts = new Map<string, Point[]>()
@@ -64,7 +66,7 @@ export class AnalysisEngine {
     const trendKey = JSON.stringify(['trend', dimension, metric, mode])
     const distributionKey = JSON.stringify(['distribution', category])
     const dimensionColumn = this.dataset!.columns.find(c => c.key === dimension)
-    if (!this.charts.has(trendKey)) this.charts.set(trendKey, aggregateRows(cache.rows, dimension, metric, mode, 30, { type: dimensionColumn?.type }))
+    if (!this.charts.has(trendKey)) this.charts.set(trendKey, aggregateRows(cache.rows, dimension, metric, mode, 30, { type: dimensionColumn?.type, dateFormat: dimensionColumn?.dateFormat }))
     if (!this.charts.has(distributionKey)) this.charts.set(distributionKey, aggregateRows(cache.rows, category, '__count__', 'count', 5, { order: 'value' }))
     const result = { version: this.version, count: rows.length, page, pages, rows: rows.slice((page - 1) * 20, page * 20), profiles: cache.profiles,
       trend: this.charts.get(trendKey)!, distribution: this.charts.get(distributionKey)!, missing: cache.missing, complete: cache.complete }
@@ -81,17 +83,23 @@ export class AnalysisEngine {
     if (text.includes('\u0000')) throw new Error('文件包含二进制或 UTF-16 内容，请另存为 UTF-8 CSV。')
     const dataset = parseCsv(text, name, { ...options, sourceByteSize: buffer.byteLength })
     this.staged = dataset
+    this.stagedDateFormat = options.dateFormat ?? 'iso'
     return { info: this.info(dataset, this.version + 1), rows: dataset.rows.slice(0, 5) }
   }
 
-  confirm(): DatasetInfo {
+  confirm(types: ColumnTypes = {}): DatasetInfo {
     if (!this.staged) throw new Error('请先选择并预览文件。')
-    const dataset = this.staged
+    const dataset = applyColumnTypes(this.staged, types, this.stagedDateFormat)
     this.staged = null
     return this.load(dataset)
   }
 
   discard() { this.staged = null }
+
+  snapshot(preferences: WorkspacePreferences, version: number): SavedWorkspace {
+    if (!this.dataset || version !== this.version) throw new Error('数据已改变，请等待分析完成后重新保存。')
+    return { schema: 1, savedAt: new Date().toISOString(), dataset: this.dataset, preferences }
+  }
 
   exportText(query: AnalysisQuery, format: 'csv' | 'json'): string {
     const rows = this.ordered(query)

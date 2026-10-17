@@ -1,6 +1,7 @@
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Activity, BarChart3, CircleDot, LineChart as LineIcon } from 'lucide-react'
 import type { AggregateMode, Column, Point } from '../data'
+import { normalizeDate } from '../data'
 import { compactNumber, formatNumber } from '../format'
 
 export const CHART_COLORS = ['#56d9be', '#758de5', '#9e83d2', '#d2b775', '#647a92']
@@ -16,10 +17,11 @@ export function Charts({ columns, count, points, distribution, dimension, metric
   const metricLabel = metric === '__count__' || mode === 'count' ? '记录数' : columns.find(c => c.key === metric)?.label ?? ''
   const modeLabel = mode === 'count' || metric === '__count__' ? '计数' : mode === 'mean' ? '均值' : '合计'
   const dateDimension = columns.find(c => c.key === dimension)?.type === 'date'
+  const dateFormat = columns.find(c => c.key === dimension)?.dateFormat
   const hasValues = points.some(point => point.value !== null)
   const axes = <>
     <CartesianGrid stroke="#283343" vertical={false} strokeDasharray="3 5" />
-    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6e8199', fontSize: 9 }} minTickGap={36} dy={9} tickFormatter={v => dateDimension && /^\d{4}-/.test(String(v)) ? String(v).slice(5, 10) : String(v).length > 8 ? String(v).slice(0, 7) + '…' : String(v)} />
+    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6e8199', fontSize: 9 }} minTickGap={36} dy={9} tickFormatter={v => dateDimension && normalizeDate(String(v).split(' ~ ')[0], dateFormat) ? normalizeDate(String(v).split(' ~ ')[0], dateFormat)!.slice(5) : String(v).length > 8 ? String(v).slice(0, 7) + '…' : String(v)} />
     <YAxis width={55} axisLine={false} tickLine={false} tick={{ fill: '#6e8199', fontSize: 9 }} tickFormatter={compactNumber} tickCount={5} />
     <Tooltip cursor={{ stroke: '#628d88', strokeDasharray: '3 3' }} formatter={v => [v == null ? '—' : formatNumber(Number(v)), metricLabel]} />
   </>

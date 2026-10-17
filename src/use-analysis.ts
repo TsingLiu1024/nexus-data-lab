@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { AnalysisQuery, AnalysisResult, ChartSettings, DatasetInfo } from './analysis'
 import type { Filter, Sort } from './data'
 import { DataClient } from './worker-client'
+import type { WorkspacePreferences } from './workspace'
 
 const emptySettings: ChartSettings = { dimension: '', metric: '__count__', category: '', mode: 'sum', kind: 'area' }
 
@@ -50,7 +51,12 @@ export function useAnalysis() {
   function setFilters(value: Filter[]) { setPage(1); setFilterValues(value) }
   function setSort(value: Sort) { setPage(1); setSortValue(value) }
   function resetFilters() { setQueryValue(''); setFilterValues([]); setSortValue(null); setPage(1) }
+  function restore(info: DatasetInfo, preferences: WorkspacePreferences) {
+    accept(info, preferences.demo)
+    setQueryValue(preferences.query); setDebounced(preferences.query); setFilterValues(preferences.filters)
+    setSortValue(preferences.sort); setPage(preferences.page); setSettings(preferences.settings)
+  }
   const busy = pending || query !== debounced
   return { client, dataset, analysis, settings, setSettings, query, setQuery, filters, setFilters, sort, setSort, page, setPage, resetFilters,
-    accept, demo, busy, error, request, loadDemo: async () => { const info = await client.request('demo', undefined); accept(info, true) } }
+    accept, restore, demo, busy, error, request, loadDemo: async () => { const info = await client.request('demo', undefined); accept(info, true) } }
 }

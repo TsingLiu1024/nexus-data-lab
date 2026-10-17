@@ -1,6 +1,7 @@
 import Papa from 'papaparse'
 
-export type Column = { key: string; label: string; type: 'number' | 'date' | 'text' }
+export type DateFormat = 'iso' | 'ymd-slash' | 'dmy-slash' | 'mdy-slash'
+export type Column = { key: string; label: string; type: 'number' | 'date' | 'text'; dateFormat?: DateFormat }
 export type Row = Record<string, string>
 export type Dataset = { name: string; columns: Column[]; rows: Row[]; warnings: string[]; byteSize: number }
 export type Filter = { column: string; operator: 'contains' | 'eq' | 'gt' | 'gte' | 'lt' | 'lte' | 'empty' | 'not-empty'; value: string }
@@ -8,8 +9,9 @@ export type Sort = { key: string; direction: 'asc' | 'desc' } | null
 export type AggregateMode = 'sum' | 'mean' | 'count'
 export type Point = { name: string; value: number | null; count: number }
 export const LIMITS = { bytes: 10 * 1024 * 1024, rows: 50_000, columns: 100 }
-export type ImportOptions = { sourceByteSize?: number }
-export type DimensionOptions = { type?: Column['type']; order?: 'dimension' | 'value' }
+export type ColumnTypes = Record<string, Column['type'] | 'auto'>
+export type ImportOptions = { sourceByteSize?: number; delimiter?: '' | ',' | ';' | '\t' | '|'; dateFormat?: DateFormat; columnTypes?: ColumnTypes }
+export type DimensionOptions = { type?: Column['type']; dateFormat?: DateFormat; order?: 'dimension' | 'value' }
 
 export function numberValue(value: string): number | null {
   const text = value.trim()
@@ -24,12 +26,40 @@ function isDate(value: string) {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value
 }
 
-function inferType(values: string[]): Column['type'] {
+export function normalizeDate(value: string, format: DateFormat = 'iso'): string | null {
+  const raw = value.trim()
+  if (format === 'iso') return isDate(raw) ? raw : null
+  const match = raw.match(format === 'ymd-slash' ? /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/ : /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!match) return null
+  const [year, month, day] = format === 'ymd-slash' ? [match[1], match[2], match[3]] : format === 'dmy-slash' ? [match[3], match[2], match[1]] : [match[3], match[1], match[2]]
+  const normalized = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+  return isDate(normalized) ? normalized : null
+}
+
+function inferType(values: string[], dateFormat: DateFormat = 'iso'): Column['type'] {
   const present = values.map(v => v.trim()).filter(Boolean)
   if (!present.length) return 'text'
-  if (present.every(isDate)) return 'date'
+  if (present.every(value => normalizeDate(value, dateFormat) !== null)) return 'date'
   if (present.every(v => numberValue(v) !== null && !/^[+-]?0\d/.test(v))) return 'number'
   return 'text'
+}
+
+export function applyColumnTypes(dataset: Dataset, overrides: ColumnTypes, dateFormat: DateFormat = 'iso'): Dataset {
+  if (Object.keys(overrides).some(key => !dataset.columns.some(c => c.key === key))) throw new Error('配置包含不存在的字段，请更新预览。')
+  const columns = dataset.columns.map(column => {
+    if (!Object.hasOwn(overrides, column.key)) return { ...column }
+    const requested = overrides[column.key]
+    if (!['auto', 'text', 'number', 'date'].includes(requested)) throw new Error(`字段「${column.label}」的类型配置无效。`)
+    const values = dataset.rows.map(row => row[column.key])
+    const type = requested === 'auto' ? inferType(values, dateFormat) : requested
+    if (type === 'number' || type === 'date') {
+      const invalid = values.find(value => value.trim() && (type === 'number' ? numberValue(value) === null : normalizeDate(value, dateFormat) === null))
+      if (invalid !== undefined) throw new Error(`字段「${column.label}」包含无法转为${type === 'number' ? '数值' : '日期'}的值「${invalid.slice(0, 40)}」，请修改类型或日期格式。`)
+    }
+    const { dateFormat: _old, ...base } = column
+    return type === 'date' ? { ...base, type, dateFormat } : { ...base, type }
+  })
+  return { ...dataset, columns }
 }
 
 export function parseCsv(text: string, name = 'data.csv', options: ImportOptions = {}): Dataset {
@@ -38,7 +68,7 @@ export function parseCsv(text: string, name = 'data.csv', options: ImportOptions
   if (byteSize > LIMITS.bytes) throw new Error('文件内容超过 10 MiB，请拆分后导入。')
   if (!text.trim()) throw new Error('文件为空，请选择包含表头与数据的 CSV 文件。')
   const parsed = Papa.parse<string[]>(text.replace(/^\uFEFF/, ''), {
-    skipEmptyLines: true, dynamicTyping: false, delimitersToGuess: [',', '\t', ';', '|'],
+    skipEmptyLines: true, dynamicTyping: false, delimiter: options.delimiter ?? '', delimitersToGuess: [',', '\t', ';', '|'],
   })
   const error = parsed.errors.find(e => e.code !== 'UndetectableDelimiter')
   if (error) throw new Error(`CSV 格式有误：第 ${(error.row ?? 0) + 1} 行引号或分隔格式不正确。`)
@@ -63,11 +93,15 @@ export function parseCsv(text: string, name = 'data.csv', options: ImportOptions
     if (cells.length < headers.length) shortRows++
     return Object.fromEntries(columns.map((c, index) => [c.key, cells[index] ?? '']))
   })
-  columns.forEach(c => { c.type = inferType(rows.map(row => row[c.key])) })
+  columns.forEach(c => {
+    c.type = inferType(rows.map(row => row[c.key]), options.dateFormat)
+    if (c.type === 'date') c.dateFormat = options.dateFormat ?? 'iso'
+  })
   const warnings = []
   if (shortRows) warnings.push(`${shortRows} 条记录缺少字段，已补为空值。`)
   if (renamed) warnings.push(`${renamed} 个空白或重复表头已自动重命名。`)
-  return { name, columns, rows, warnings, byteSize }
+  const dataset = { name, columns, rows, warnings, byteSize }
+  return options.columnTypes ? applyColumnTypes(dataset, options.columnTypes, options.dateFormat) : dataset
 }
 
 export function profileColumn(rows: Row[], column: Column) {
@@ -92,6 +126,10 @@ function matchesFilter(row: Row, filter: Filter, column?: Column) {
     case 'not-empty': return value.trim() !== ''
     case 'contains': return value.toLocaleLowerCase().includes(needle)
     case 'eq': {
+      if (column.type === 'date') {
+        const left = normalizeDate(value, column.dateFormat), right = normalizeDate(filter.value, column.dateFormat) ?? normalizeDate(filter.value)
+        return left !== null && right !== null && left === right
+      }
       if (column.type !== 'number') return value.toLocaleLowerCase() === needle
       const left = numberValue(value), right = numberValue(filter.value)
       return left !== null && right !== null && left === right
@@ -128,7 +166,7 @@ export function sortRows(source: Row[], columns: Column[], sort: Sort): Row[] {
   return rows.sort((a, b) => {
     const left = a[column.key].trim(), right = b[column.key].trim()
     if (!left || !right) return !left && !right ? 0 : !left ? 1 : -1
-    const comparison = column.type === 'number' ? (numberValue(left) ?? 0) - (numberValue(right) ?? 0) : collator.compare(left, right)
+    const comparison = column.type === 'number' ? (numberValue(left) ?? 0) - (numberValue(right) ?? 0) : column.type === 'date' ? (normalizeDate(left, column.dateFormat) ?? left).localeCompare(normalizeDate(right, column.dateFormat) ?? right) : collator.compare(left, right)
     return sort.direction === 'asc' ? comparison : -comparison
   })
 }
@@ -157,7 +195,7 @@ export function aggregateRows(rows: Row[], dimension: string, metric: string, mo
   const dates = options.type === 'date' || (!options.type && presentGroups.length > 0 && presentGroups.every(g => isDate(g.name)))
   const numeric = options.type === 'number'
   const ordered = options.order !== 'value' && (dates || numeric)
-  result.sort(ordered ? (a, b) => a.missing ? 1 : b.missing ? -1 : numeric ? (numberValue(a.name) ?? 0) - (numberValue(b.name) ?? 0) : a.name.localeCompare(b.name) : (a, b) => {
+  result.sort(ordered ? (a, b) => a.missing ? 1 : b.missing ? -1 : numeric ? (numberValue(a.name) ?? 0) - (numberValue(b.name) ?? 0) : (normalizeDate(a.name, options.dateFormat) ?? a.name).localeCompare(normalizeDate(b.name, options.dateFormat) ?? b.name) : (a, b) => {
     const left = value(a), right = value(b)
     return left === null ? (right === null ? 0 : 1) : right === null ? -1 : right - left
   })

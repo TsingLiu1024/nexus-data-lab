@@ -2,6 +2,27 @@ import { describe, it, expect } from 'vitest'
 import { parseCsv, numberValue, profileColumn, selectRows, aggregateRows, serializeCsv, serializeJson, LIMITS } from './data'
 
 describe('CSV import preserves real-world data', () => {
+  it('honors explicit delimiters and preserves original date text while sorting actual dates', () => {
+    expect(parseCsv('名称|金额\nx,y|2', 'pipe.csv', { delimiter: '|' }).rows[0]).toEqual({ c0: 'x,y', c1: '2' })
+    const d = parseCsv('日期,金额\n02/01/2026,1\n01/12/2025,2', 'dates.csv', { dateFormat: 'dmy-slash' })
+    expect(d.columns[0].type).toBe('date')
+    expect(d.rows[0].c0).toBe('02/01/2026')
+    expect(selectRows(d, '', [], { key: 'c0', direction: 'asc' }).map(r => r.c0)).toEqual(['01/12/2025', '02/01/2026'])
+    expect(aggregateRows(d.rows, 'c0', 'c1', 'sum', 30, { type: 'date', dateFormat: 'dmy-slash' }).map(p => p.name)).toEqual(['01/12/2025', '02/01/2026'])
+  })
+  it('supports explicit date formats and rejects invalid conversions instead of dropping values', () => {
+    for (const [dateFormat, date] of [['ymd-slash', '2026/12/31'], ['dmy-slash', '31/12/2026'], ['mdy-slash', '12/31/2026']] as const) {
+      expect(parseCsv(`日期\n${date}`, 'd.csv', { dateFormat, columnTypes: { c0: 'date' } }).columns[0].type).toBe('date')
+    }
+    expect(() => parseCsv('日期\n31/02/2026', 'bad.csv', { dateFormat: 'dmy-slash', columnTypes: { c0: 'date' } })).toThrow(/日期/)
+    expect(() => parseCsv('金额\nN\/A', 'bad.csv', { columnTypes: { c0: 'number' } })).toThrow(/金额/)
+    expect(() => parseCsv('a\nx', 'bad.csv', { columnTypes: { missing: 'text' } })).toThrow(/字段/)
+  })
+  it('lets people override inferred columns without changing their raw values', () => {
+    const d = parseCsv('编号,金额\n001,1.00\n002,2.00', 'types.csv', { columnTypes: { c0: 'number', c1: 'text' } })
+    expect(d.columns.map(c => c.type)).toEqual(['number', 'text'])
+    expect(d.rows[0]).toEqual({ c0: '001', c1: '1.00' })
+  })
   it('uses original file bytes for the size cap, including GB18030 files', () => {
     const text = '名称\n' + ('中'.repeat(90) + '\n').repeat(40_000)
     expect(parseCsv(text, '中文.csv', { sourceByteSize: 7_240_005 }).rows).toHaveLength(40_000)
