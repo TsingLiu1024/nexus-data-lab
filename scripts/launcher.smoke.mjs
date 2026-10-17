@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspectService } from './start.mjs'
+import { exitWithin } from './launcher-test-utils.mjs'
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const delay = ms => new Promise(resolveDone => setTimeout(resolveDone, ms))
@@ -24,7 +25,7 @@ function launch(directory, port) {
   const windows = process.platform === 'win32'
   const child = windows
     ? spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/c', 'start.cmd'], { cwd: directory, env, windowsHide: true })
-    : spawn(process.execPath, ['scripts/start.mjs', '--no-browser'], { cwd: directory, env })
+    : spawn(process.execPath, ['scripts/start.mjs', '--no-browser'], { cwd: directory, env, detached: true })
   child.stdin.end()
   let output = ''
   child.stdout.on('data', chunk => { output += chunk })
@@ -38,9 +39,17 @@ async function stop(run) {
   if (process.platform === 'win32') {
     // This PID is the wrapper created by this test; terminate only its own descendants.
     const killer = spawn('taskkill', ['/PID', String(run.child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' })
-    await new Promise(resolveDone => killer.on('exit', resolveDone))
-  } else run.child.kill('SIGTERM')
-  await run.done
+    await exitWithin(new Promise((resolveDone, reject) => { killer.on('exit', resolveDone); killer.on('error', reject) }), 5000)
+  } else {
+    try { process.kill(-run.child.pid, 'SIGTERM') } catch (error) { if (error.code !== 'ESRCH') throw error }
+  }
+  try { await exitWithin(run.done, 5000) }
+  catch (error) {
+    if (process.platform !== 'win32') {
+      try { process.kill(-run.child.pid, 'SIGKILL') } catch (killError) { if (killError.code !== 'ESRCH') throw killError }
+      await exitWithin(run.done, 5000)
+    } else throw error
+  }
 }
 
 async function waitFor(run, fragment) {
@@ -76,12 +85,12 @@ test('real launcher: Chinese path, rebuild, reuse, stale source and unrelated po
     assert.equal(await inspectService(`http://127.0.0.1:${port}/`), 'nexus')
 
     const second = launch(directory, port); runs.push(second)
-    assert.equal(await second.done, 0, second.output())
+    assert.equal(await exitWithin(second.done), 0, second.output())
     assert.match(second.output(), /already running and up to date/)
 
     await writeFile(join(directory, 'public', 'smoke-change.txt'), 'A new source asset')
     const stale = launch(directory, port); runs.push(stale)
-    assert.notEqual(await stale.done, 0, stale.output())
+    assert.notEqual(await exitWithin(stale.done), 0, stale.output())
     assert.match(stale.output(), /out of date/)
     assert.equal(await inspectService(`http://127.0.0.1:${port}/`), 'nexus')
     await stop(first)
@@ -91,21 +100,23 @@ test('real launcher: Chinese path, rebuild, reuse, stale source and unrelated po
     const rebuilt = launch(directory, port); runs.push(rebuilt)
     await waitFor(rebuilt, 'NEXUS READY')
     assert.match(rebuilt.output(), /Building NEXUS/)
-    assert.equal(await (await fetch(`http://127.0.0.1:${port}/smoke-change.txt`)).text(), 'A new source asset')
+    assert.equal(await (await fetch(`http://127.0.0.1:${port}/smoke-change.txt`, { signal: AbortSignal.timeout(5000) })).text(), 'A new source asset')
     await stop(rebuilt)
 
     const occupiedPort = await listen(reservation)
     reservationOpen = true
     const occupied = launch(directory, occupiedPort); runs.push(occupied)
-    assert.notEqual(await occupied.done, 0, occupied.output())
+    assert.notEqual(await exitWithin(occupied.done), 0, occupied.output())
     assert.match(occupied.output(), /occupied by another application/)
-    assert.equal(await (await fetch(`http://127.0.0.1:${occupiedPort}/`)).text(), 'Unrelated application')
+    assert.equal(await (await fetch(`http://127.0.0.1:${occupiedPort}/`, { signal: AbortSignal.timeout(5000) })).text(), 'Unrelated application')
   } finally {
-    for (const run of runs) await stop(run)
+    const stopped = await Promise.allSettled(runs.map(stop))
     if (reservationOpen) await new Promise(resolveDone => reservation.close(resolveDone))
     const target = resolve(directory)
     assert.equal(dirname(target), resolve(tmpdir()))
     assert.ok(target.startsWith(join(resolve(tmpdir()), 'NEXUS 中文路径 ')))
     await rm(target, { recursive: true, force: true })
+    const failed = stopped.find(result => result.status === 'rejected')
+    if (failed) throw failed.reason
   }
 })

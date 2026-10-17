@@ -24,7 +24,7 @@ export function Charts({ columns, count, points, distribution, dimension, metric
   const axisLabel = continuous ? (dateDimension ? '按实际日期间距' : '按实际数值间距') : '按当前筛选结果聚合'
   const axes = <>
     <CartesianGrid stroke="#283343" vertical={false} strokeDasharray="3 5" />
-    <XAxis dataKey={continuous ? 'x' : 'name'} type={continuous ? 'number' : 'category'} scale={continuous ? 'linear' : 'auto'} domain={trend.domain} padding={{ left: 12, right: 12 }} axisLine={false} tickLine={false} tick={{ fill: '#6e8199', fontSize: 9 }} minTickGap={36} dy={9} tickFormatter={v => dateDimension ? new Date(Number(v)).toISOString().slice(0, 10) : continuous ? compactNumber(Number(v)) : String(v).length > 8 ? String(v).slice(0, 7) + '…' : String(v)} />
+    <XAxis dataKey={continuous ? 'x' : 'name'} type={continuous ? 'number' : 'category'} scale={continuous ? 'linear' : 'auto'} domain={trend.domain} padding={{ left: 12, right: 12 }} axisLine={false} tickLine={false} tick={{ fill: '#6e8199', fontSize: 9 }} minTickGap={36} dy={9} tickFormatter={v => dateDimension ? new Date(Number(v)).toISOString().slice(0, 10) : !continuous && String(v).length > 8 ? String(v).slice(0, 7) + '…' : String(v)} />
     <YAxis width={55} axisLine={false} tickLine={false} tick={{ fill: '#6e8199', fontSize: 9 }} tickFormatter={compactNumber} tickCount={5} />
     <Tooltip cursor={{ stroke: '#628d88', strokeDasharray: '3 3' }} labelFormatter={(_label, payload) => payload[0]?.payload?.name ?? ''} formatter={v => [v == null ? '—' : formatNumber(Number(v)), metricLabel]} />
   </>

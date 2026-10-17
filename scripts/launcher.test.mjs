@@ -5,6 +5,18 @@ import { mkdtemp, writeFile, mkdir, unlink, rmdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { inspectService, buildFingerprint, launchDecision } from './start.mjs'
+import { exitWithin } from './launcher-test-utils.mjs'
+
+test('child-exit deadlines reject stalled waits and allow cleanup to run', async () => {
+  let cleaned = false
+  const delayedExit = new Promise(resolve => setTimeout(() => resolve(0), 120))
+  await assert.rejects(async () => {
+    try { await exitWithin(delayedExit, 20) }
+    finally { cleaned = true }
+  }, /did not exit/)
+  assert.equal(cleaned, true)
+  assert.equal(await exitWithin(Promise.resolve(0)), 0)
+})
 
 test('identifies our app and refuses to reuse an unrelated local server', async () => {
   const server = createServer((request, response) => {

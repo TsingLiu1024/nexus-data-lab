@@ -33,6 +33,16 @@ test('merged bins retain their complete range in the tooltip', async ({ page }) 
   await expect(page.locator('.chart-foot')).toContainText('区间按中点定位')
 })
 
+test('fractional numeric ticks preserve distinct values instead of rounding them all to zero', async ({ page }) => {
+  for (const [a, b, c] of [['0.1', '0.2', '0.3'], ['-0.3', '-0.2', '-0.1'], ['1e-8', '2e-8', '3e-8']]) {
+    await importCsv(page, `位置,金额\n${a},10\n${b},20\n${c},30`)
+    const ticks = page.getByTestId('trend-chart').locator('.recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value')
+    await expect.poll(() => ticks.allTextContents()).toContain(Number(a).toString())
+    await expect.poll(() => ticks.allTextContents()).toContain(Number(c).toString())
+    expect(new Set(await ticks.allTextContents()).size).toBeGreaterThan(2)
+  }
+})
+
 async function positions(page: Page, kind: 'area' | 'bar') {
   await page.getByRole('button', { name: kind === 'area' ? '折线图' : '柱状图', exact: true }).click()
   const selector = kind === 'area' ? '.recharts-area-dots circle' : '.recharts-bar-rectangle path'
