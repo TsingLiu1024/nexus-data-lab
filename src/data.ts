@@ -116,8 +116,13 @@ export function selectRows(dataset: Dataset, query = '', filters: Filter[] = [],
   const rows = dataset.rows.filter(row =>
     (!needle || dataset.columns.some(c => row[c.key].toLocaleLowerCase().includes(needle))) && filters.every(f => matchesFilter(row, f, columns.get(f.column))),
   )
+  return sortRows(rows, dataset.columns, sort)
+}
+
+export function sortRows(source: Row[], columns: Column[], sort: Sort): Row[] {
+  const rows = [...source]
   if (!sort) return rows
-  const column = dataset.columns.find(c => c.key === sort.key)
+  const column = columns.find(c => c.key === sort.key)
   if (!column) return rows
   const collator = new Intl.Collator('zh-CN', { numeric: true })
   return rows.sort((a, b) => {

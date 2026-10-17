@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { FileUp, ShieldCheck, Upload, X, LoaderCircle } from 'lucide-react'
-import { LIMITS, parseCsv } from '../data'
-import type { Dataset } from '../data'
+import { LIMITS } from '../data'
+import type { DatasetInfo } from '../analysis'
+import type { DataClient } from '../worker-client'
 
-type Props = { onClose: () => void; onImport: (dataset: Dataset) => void }
+type Props = { client: DataClient; onClose: () => void; onImport: (dataset: DatasetInfo) => void }
 
-export function ImportDialog({ onClose, onImport }: Props) {
+export function ImportDialog({ client, onClose, onImport }: Props) {
   const dialog = useRef<HTMLDivElement>(null)
   const [encoding, setEncoding] = useState('utf-8')
   const [error, setError] = useState('')
@@ -47,13 +48,11 @@ export function ImportDialog({ onClose, onImport }: Props) {
     setBusy(true)
     try {
       const buffer = await file.arrayBuffer()
-      const text = new TextDecoder(encoding, { fatal: true }).decode(buffer)
-      if (text.includes('\u0000')) throw new Error('文件包含二进制或 UTF-16 内容，请另存为 UTF-8 CSV。')
-      // Yield once so the loading state paints before parsing bounded local input.
-      await new Promise(resolve => setTimeout(resolve, 30))
-      const dataset = parseCsv(text, file.name, { sourceByteSize: file.size })
-      dataset.byteSize = file.size
-      if (active.current) onImport(dataset)
+      await client.request('stage', { buffer, name: file.name, encoding }, [buffer])
+      if (active.current) {
+        const dataset = await client.request('confirm', undefined)
+        if (active.current) onImport(dataset)
+      } else { void client.request('discard', undefined).catch(() => {}) }
     } catch (reason) {
       if (active.current) setError(reason instanceof TypeError ? '无法按当前编码读取，请切换 UTF-8 / GB18030 后重新选择文件。' : reason instanceof Error ? reason.message : '读取失败，请重新选择文件。')
     } finally {
