@@ -38,6 +38,8 @@ npm run test:e2e         # 真实浏览器操作测试
 npm run preview          # 预览生产构建
 ```
 
+Windows 默认使用系统 Microsoft Edge；其他系统使用 Playwright Chromium。可通过 `PLAYWRIGHT_CHANNEL` 环境变量覆盖浏览器通道。
+
 ## 使用方法
 
 1. 打开页面，先用演示数据体验；或点击「导入数据」，选择编码并上传本地分隔文本。
