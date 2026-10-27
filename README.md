@@ -23,7 +23,7 @@ A local-first CSV analytics workspace with a Chinese interface. Import, filter, 
 
 ![操作演示](docs/walkthrough.gif)
 
-版本变化见 [更新记录](CHANGELOG.md)，下载包的 SHA-256 校验值随 Release 提供。当前仓库为私有仓库，查看及下载需要相应访问权限。
+版本变化见 [更新记录](CHANGELOG.md)，下载包的 SHA-256 校验值随 Release 提供。仓库已公开，源码和正式版本均可直接查看及下载。
 
 ## 功能
 
@@ -57,7 +57,7 @@ npm ci
 npm run dev
 ```
 
-访问终端显示的本地地址。私有仓库需要先登录有权限的 GitHub 账号。
+访问终端显示的本地地址。
 
 ```bash
 npm run check            # 格式、静态检查、单元、启动器单元与构建
@@ -151,7 +151,7 @@ v1.3 验证记录见 [多工作区与维护验证](docs/workspace-maintenance-ve
 
 ## 参与贡献与反馈
 
-请阅读 [贡献指南](CONTRIBUTING.md)。[提交问题](https://github.com/TsingLiu1024/nexus-data-lab/issues/new/choose)时可选择缺陷报告或功能建议表单；提交变更时使用仓库 PR 模板。请提供合成或匿名化的最小示例，避免上传真实 CSV 或工作区备份。私有仓库的参与者需要访问权限。
+请阅读 [贡献指南](CONTRIBUTING.md)。[提交问题](https://github.com/TsingLiu1024/nexus-data-lab/issues/new/choose)时可选择缺陷报告或功能建议表单；提交变更时使用仓库 PR 模板。请提供合成或匿名化的最小示例，避免上传真实 CSV 或工作区备份。欢迎通过公开 Issues 和 Pull Requests 参与。
 
 ![多工作区管理](docs/workspaces.png)
 
